@@ -1,12 +1,11 @@
 import { z } from "zod";
 import { llm } from "../../services/ai/ai";
-import { generateObject, generateText } from "ai";
+import { generateObject } from "ai";
 import { ChatMessage } from "../memory";
 
 const CommandsEnumSchema = z.enum([
   "crawl_pages",
-  "modify_extracted_text",
-  "view_extracted_text",
+  "modify_text",
   "answer_question",
   "download_page",
   "none",
@@ -31,17 +30,19 @@ export type Command = z.infer<typeof CommandSchema>;
 
 export async function getCommand(messages: ChatMessage[]) {
   const response = await generateObject({
-    model: llm.smallChat,
+    model: llm.smallModel,
     messages: [
       {
         role: "system",
         content: `
           You are an AI assistant that converts a user prompt intent into an actionable command.
+          
+          - You do not take action on the command or instructions.
+          - All you need to do is take the input messages, parse the latest message, and return the JSON according to the description below.
 
           The available commands are:
-          - "crawl_pages": Extract pages from a given URL. Requires the "url" argument.
-          - "modify_extracted_text": Modify the text of an already extracted page. Requires the "pageName" and "instructions" arguments.
-          - "view_extracted_text": View the text of an already extracted page. Requires the "pageName" argument.
+          - "crawl_pages": Extract pages from a given URL. Requires the "url" and "instructions" arguments.
+          - "modify_text": Modify the text of an already extracted page. Requires the "pageName" and "instructions" arguments.
           - "answer_question": Answer a question based on the extracted pages. No additional arguments required.
           - "download_page": Download a specific page. Requires the "pageName" argument.
           - "none": No action is required. This is used when the prompt does not require any of the above commands.
@@ -62,28 +63,22 @@ export async function getCommand(messages: ChatMessage[]) {
 
           2. Prompt: "Update the introduction section of the 'Getting Started' page to include more details about installation."
              Response: {
-               "command": "modify_extracted_text",
+               "command": "modify_text",
                "pageName": "Getting Started",
                "instructions": "Update the introduction section to include more details."
              }
-          
-          3. Prompt: "Show me the content of the 'API Reference' page."
-             Response: {
-               "command": "view_extracted_text",
-               "pageName": "API Reference"
-             }
 
-          4. Prompt: "What are the main topics covered in the extracted tutorials?"
+          3. Prompt: "What are the main topics covered in the extracted tutorials?"
              Response: {
                "command": "answer_question"
              }
 
-          5. Prompt: "I want to download all the pages we've extracted so far."
+          4. Prompt: "I want to download all the pages we've extracted so far."
              Response: {
                "command": "download_pages"
              }
 
-          6. Prompt: "Hello, how are you today?"
+          5. Prompt: "Hello, how are you today?"
              Response: {
                "command": "none"
              }

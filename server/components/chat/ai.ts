@@ -11,7 +11,7 @@ export async function answerPrompt(
   const { addMemoryTool, searchTool, updateMemoryTool } = tools.getTools();
 
   const response = await generateText({
-    model: llm.largeChat,
+    model: llm.largeModel,
     messages: [
       {
         role: "system",

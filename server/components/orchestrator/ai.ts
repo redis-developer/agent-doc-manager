@@ -5,7 +5,7 @@ import { ChatMessage } from "../memory";
 
 const CommandsEnumSchema = z.enum([
   "crawl_pages",
-  "modify_extracted_text",
+  "modify_text",
   "view_extracted_text",
   "answer_question",
   "download_page",
@@ -31,7 +31,7 @@ export type Command = z.infer<typeof CommandSchema>;
 
 export async function getCommand(messages: ChatMessage[]) {
   const response = await generateObject({
-    model: llm.smallChat,
+    model: llm.smallModel,
     messages: [
       {
         role: "system",
@@ -40,7 +40,7 @@ export async function getCommand(messages: ChatMessage[]) {
 
           The available commands are:
           - "crawl_pages": Extract pages from a given URL. Requires the "url" argument.
-          - "modify_extracted_text": Modify the text of an already extracted page. Requires the "pageName" and "instructions" arguments.
+          - "modify_text": Modify the text of an already extracted page. Requires the "pageName" and "instructions" arguments.
           - "view_extracted_text": View the text of an already extracted page. Requires the "pageName" argument.
           - "answer_question": Answer a question based on the extracted pages. No additional arguments required.
           - "download_page": Download a specific page. Requires the "pageName" argument.
@@ -62,7 +62,7 @@ export async function getCommand(messages: ChatMessage[]) {
 
           2. Prompt: "Update the introduction section of the 'Getting Started' page to include more details about installation."
              Response: {
-               "command": "modify_extracted_text",
+               "command": "modify_text",
                "pageName": "Getting Started",
                "instructions": "Update the introduction section to include more details."
              }
@@ -103,7 +103,7 @@ export async function generateResponse(
   initialResponse: string | null = null,
 ): Promise<string> {
   const response = await generateText({
-    model: llm.mediumChat,
+    model: llm.mediumModel,
     messages: [
       {
         role: "system",
@@ -114,7 +114,7 @@ export async function generateResponse(
         The command extracted is: ${command.command}
         
         If the command is "crawl_pages", respond with a message indicating that the pages have been extracted from the provided URL: ${command.url}.
-        If the command is "modify_extracted_text", respond with a message indicating that the specified page (${command.pageName}) has being modified based on the provided instructions: ${command.instructions}.
+        If the command is "modify_text", respond with a message indicating that the specified page (${command.pageName}) has being modified based on the provided instructions: ${command.instructions}.
 
         Ensure that your response is clear and concise, and directly relates to the command provided.
       `,

@@ -8,6 +8,7 @@ import getClient from "../../redis";
 import { llm, embedText } from "../../services/ai/ai";
 import { randomUlid } from "../../utils/uid";
 import { chunkFile, matchPromptToUrl, modifyContent } from "./ai";
+import { MarkdownTextSplitter } from "@langchain/textsplitters";
 import {
   base64ToUrl,
   escapeDashes,
@@ -102,7 +103,12 @@ async function splitFile(file: MarkdownFile): Promise<MarkdownFileChunk[]> {
   const chunkSize = 10;
 
   logger.info(`Splitting file ${file.url} for user ${file.userId}`);
-  const { chunks } = await chunkFile(file.content);
+  const splitter = new MarkdownTextSplitter({
+    chunkSize: 1000,
+    chunkOverlap: 0,
+  });
+  const chunks = await splitter.splitText(file.content);
+  // const { chunks } = await chunkFile(file.content);
   logger.info(`File split into ${chunks.length} chunks`);
 
   const allFileChunks: MarkdownFileChunk[] = [];
@@ -141,7 +147,7 @@ export async function addFiles(
     const mdFile = {
       id: randomUlid(),
       userId,
-      url: urlToBase64(file.url),
+      url: file.url,
       content: file.content,
     };
 

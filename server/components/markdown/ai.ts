@@ -14,7 +14,7 @@ export async function modifyContent(content: string, prompt: string) {
   });
 
   const response = await generateObject({
-    model: llm.mediumChat,
+    model: llm.mediumModel,
     messages: [
       {
         role: "system",
@@ -65,7 +65,7 @@ export async function matchPromptToUrl(prompt: string, urls: string[]) {
   });
 
   const response = await generateObject({
-    model: llm.smallChat,
+    model: llm.smallModel,
     messages: [
       {
         role: "system",
@@ -101,7 +101,7 @@ export async function matchPromptToUrl(prompt: string, urls: string[]) {
 
 export async function chunkFile(content: string, maxChunkSize: number = 1000) {
   const response = await generateObject({
-    model: llm.smallChat,
+    model: llm.smallModel,
     messages: [
       {
         role: "system",

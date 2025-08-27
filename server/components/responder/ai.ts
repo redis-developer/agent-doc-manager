@@ -9,7 +9,7 @@ export async function generateResponse(
   initialResponse: string | null = null,
 ): Promise<string> {
   const response = await generateText({
-    model: llm.mediumChat,
+    model: llm.mediumModel,
     messages: [
       {
         role: "system",
@@ -20,7 +20,7 @@ export async function generateResponse(
         The command extracted is: ${command.command}
         
         If the command is "crawl_pages", respond with a message indicating that the pages have been extracted from the provided URL: ${command.url}.
-        If the command is "modify_extracted_text", respond with a message indicating that the specified page (${command.pageName}) has being modified based on the provided instructions: ${command.instructions}.
+        If the command is "modify_text", respond with a message indicating that the specified page (${command.pageName}) has being modified based on the provided instructions: ${command.instructions}.
 
         Ensure that your response is clear and concise, and directly relates to the command provided.
       `,
