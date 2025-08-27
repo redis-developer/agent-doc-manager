@@ -1,0 +1,57 @@
+import { generateText, stepCountIs } from "ai";
+import { llm } from "../../services/ai/ai";
+import { Tools } from "../../components/memory";
+import type { ChatMessage } from "../../components/memory";
+import type { Command } from "../orchestrator";
+
+export async function answerPrompt(
+  messages: ChatMessage[],
+  tools: Tools,
+): Promise<string> {
+  const { addMemoryTool, searchTool, updateMemoryTool } = tools.getTools();
+
+  const response = await generateText({
+    model: llm.largeChat,
+    messages: [
+      {
+        role: "system",
+        content: `
+            Answer the latest user question to the best of your ability. The following tools are available to you:
+            - Call the \`${searchTool.name}\` tool if you need to search user memory for relevant information. 
+                - Appropriate times to use the \`${searchTool.name}\` tool include:
+                    - If you cannot answer the prompt without information that is based on the user's past interactions.
+                    - If the user has asked a prompt that requires context from previous interactions.
+                    - If are unable to answer the prompt based on the current context, but you think the answer could exist in memory.
+                - Types of user memory include:
+                    - **long-term**: Contains relevant information about the user such as their preferences and settings.
+                    - **semantic**: Contains general knowledge that is relevant to all users such as, "Why is the sky blue?".
+                    - **episodic**: Contains summaries of past interactions with the user.
+                - Translate any user pronouns into the third person when searching in memory, e.g., "I" becomes "the user", "my" becomes "the user's", etc.
+            - Call the \`${addMemoryTool.name}\` to add a memory that you might want to lookup later based on the prompt. The memory can be stored in:
+                - **long-term**: If the memory is relevant to the user and can help in future interactions across different sessions.
+                - **semantic**: If the memory is relevant to all users and can help in future interactions across all sessions.
+                - Translate any user pronouns into the third person when storing in memory, e.g., "I" becomes "the user", "my" becomes "the user's", etc.
+                - Don't translate pronouns when answering the question, only when storing in memory.
+            - Call the \`${updateMemoryTool.name}\` to update an existing memory obtained from \`${searchTool.name}\` with a new value. The memory can be stored in:
+                - **long-term**: If the memory is relevant to the user and can help in future interactions across different sessions.
+                - **semantic**: If the memory is general knowledge relevant to anyone and can help in future interactions. You _must_ use semantic memory if possible.
+                - Translate any user pronouns into the third person when storing in memory, e.g., "I" becomes "the user", "my" becomes "the user's", etc.
+                - Don't translate pronouns when answering the question, only when storing in memory.
+            
+            - When answering the prompt, if you have obtained relevant information from memory using the \`${searchTool.name}\` tool, use that information to construct your answer.
+            - Make sure you add any relevant information from the prompt to either "semantic" or "long-term" memory using the \`${addMemoryTool.name}\` tool so that you can lookup that information in future interactions.
+            - Only add memories based on the latest message, do not add memories for prior messages.
+          `,
+      },
+      ...messages,
+    ],
+    tools: {
+      [searchTool.name]: searchTool,
+      [addMemoryTool.name]: addMemoryTool,
+      [updateMemoryTool.name]: updateMemoryTool,
+    },
+    stopWhen: [stepCountIs(10)],
+  });
+
+  return response.text;
+}

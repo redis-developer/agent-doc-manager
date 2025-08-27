@@ -1,0 +1,55 @@
+{
+  "name": "redis-js-starter",
+  "version": "0.1.0",
+  "main": "server/index.js",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "deploy:css": "bunx @tailwindcss/cli -i ./styles/styles.css -o ./public/styles.css",
+    "deploy:build": "bun build --target=bun . --outdir build/",
+    "dev": "bun run --bun concurrently npm:dev:*",
+    "dev:server": "bun run --watch .",
+    "dev:css": "bunx @tailwindcss/cli -i ./styles/styles.css -o ./public/styles.css --watch",
+    "docker": "docker compose down && docker compose up -d --build",
+    "docker:redis": "docker compose down && docker compose up -d redis",
+    "format": "prettier . --write",
+    "start": "bun .",
+    "ts": "bunx tsc"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.6",
+    "@ai-sdk/google-vertex": "^3.0.11",
+    "@ai-sdk/openai": "^2.0.19",
+    "@tavily/core": "^0.5.11",
+    "ai": "^5.0.22",
+    "connect-redis": "^9.0.0",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-handlebars": "^8.0.3",
+    "express-session": "^1.18.2",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
+    "marked": "^16.2.0",
+    "redis": "^5.8.2",
+    "ulid": "^3.0.1",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0",
+    "ws": "^8.18.3",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/express-session": "^1.18.2",
+    "concurrently": "^9.2.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4",
+    "tailwindcss": "^4.1.12",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
