@@ -4,11 +4,19 @@
         <div class="flex justify-between items-center">
             <div class="text-gray-800 break-all">{{url}}</div>
             <div class="space-x-2 flex flex-row">
+              {{#if (isEqual a=../currentDocumentId b=id)}}
+                <form ws-send hx-disabled-elt="this" class="inline">
+                    <input type="hidden" name="cmd" value="close_document" />
+                    <input type="hidden" name="documentId" value="{{id}}" />
+                    <button type="submit" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">x</button>
+                </form>
+              {{else}}
                 <form ws-send hx-disabled-elt="this" class="inline">
                     <input type="hidden" name="cmd" value="edit_document" />
                     <input type="hidden" name="documentId" value="{{id}}" />
                     <button type="submit" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">✎</button>
                 </form>
+              {{/if}}
                 <form ws-send hx-disabled-elt="this" class="inline">
                     <input type="hidden" name="cmd" value="download_document" />
                     <input type="hidden" name="documentId" value="{{id}}" />

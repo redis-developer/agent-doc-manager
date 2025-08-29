@@ -83,6 +83,14 @@ function onConnection(ws: WebSocket, req: Request) {
             form.documentId,
           );
           break;
+        case "close_document":
+          await ctrl.closeDocument(
+            send,
+            userId,
+            currentProjectId!,
+            form.documentId,
+          );
+          break;
         default:
           logger.warn("Unknown command received", { cmd: form.cmd, userId });
           return;

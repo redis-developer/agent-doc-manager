@@ -174,8 +174,36 @@ export async function editDocument(
       currentDocumentId: documentId,
     }),
   );
+}
 
-  allDocs.forEach((d) => {});
+export async function closeDocument(
+  send: (message: string) => void,
+  userId: string,
+  projectId: string,
+  documentId: string,
+) {
+  const doc = await documents.read(userId, documentId);
+
+  if (!doc) {
+    logger.warn(`Document not found: ${documentId}`, {
+      userId,
+      documentId,
+    });
+    return;
+  }
+
+  const allDocs = await documents.all(userId, projectId);
+
+  logger.info(`Disabling edit mode for document \`${documentId}\``, {
+    userId,
+    documentId,
+  });
+
+  send(
+    view.renderDocumentsList({
+      documents: allDocs,
+    }),
+  );
 }
 
 export async function processIncommingMessage(
