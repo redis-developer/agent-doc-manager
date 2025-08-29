@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { llm } from "../../services/ai/ai";
 import { generateObject, generateText } from "ai";
-import { ChatMessage } from "../memory";
+import { ShortTermMemory } from "../memory";
 
 const CommandsEnumSchema = z.enum([
   "crawl_pages",
@@ -29,7 +29,7 @@ const CommandSchema = z.object({
 
 export type Command = z.infer<typeof CommandSchema>;
 
-export async function getCommand(messages: ChatMessage[]) {
+export async function getCommand(messages: ShortTermMemory[]) {
   const response = await generateObject({
     model: llm.smallModel,
     messages: [
@@ -98,7 +98,7 @@ export async function getCommand(messages: ChatMessage[]) {
 }
 
 export async function generateResponse(
-  messages: ChatMessage[],
+  messages: ShortTermMemory[],
   command: Command,
   initialResponse: string | null = null,
 ): Promise<string> {

@@ -1,12 +1,9 @@
 import { z } from "zod";
 import { llm } from "../../services/ai/ai";
 import { generateText } from "ai";
-import { MarkdownFile } from "../markdown/controller";
+import { Document } from "../documents/controller";
 
-export async function answerQuestionWithRag(
-  prompt: string,
-  files: MarkdownFile[],
-) {
+export async function answerQuestionWithRag(prompt: string, files: Document[]) {
   const response = await generateText({
     model: llm.chat,
     prompt: `

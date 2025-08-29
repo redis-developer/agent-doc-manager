@@ -1,7 +1,7 @@
 import getClient from "../../redis";
 import { embedText, llm } from "../../services/ai/ai";
 import { randomUlid } from "../../utils/uid";
-import { ctrl as markdown } from "../markdown";
+import { ctrl as markdown } from "../documents";
 import * as memory from "../memory";
 import { answerQuestionWithRag } from "./ai";
 

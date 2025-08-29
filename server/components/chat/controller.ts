@@ -35,7 +35,7 @@ async function flush(userId: string) {
 async function getChat(userId: string, chatId?: string) {
   const redis = getClient();
 
-  return memory.ChatModel.FromChatId(redis, userId, chatId, {
+  return memory.ShortTermMemoryModel.FromSessionId(redis, userId, chatId, {
     createUid: () => randomUlid(),
   });
 }
@@ -148,8 +148,8 @@ export async function processChat(
 ): Promise<string> {
   let botResponseSent = false;
   const chat = await getChat(userId, chatId);
-  chatId = chat.chatId;
-  let response: memory.ChatMessage = {
+  chatId = chat.sessionId;
+  let response: memory.ShortTermMemory = {
     id: `bot-${randomUlid()}`,
     role: "assistant",
     content: "...",
@@ -176,7 +176,7 @@ export async function processChat(
     send(view.renderMessage(response));
     botResponseSent = true;
 
-    response.content = await orchestrator.processIncommingMessage(userId, chat);
+    // response.content = await orchestrator.processIncommingMessage(userId, chat);
     response = await chat.push(response);
 
     logger.debug(`Bot message added to stream for user \`${userId}\``, {
@@ -198,7 +198,7 @@ export async function processChat(
       userId,
     });
 
-    const message: memory.ChatMessage = {
+    const message: memory.ShortTermMemory = {
       id: botId,
       content: "An error occurred while processing your message.",
       role: "assistant",
@@ -231,19 +231,23 @@ export async function newChat(
     logger.debug(`Creating new chat for user \`${userId}\``, {
       userId,
     });
-    const newChat = await memory.ChatModel.New(getClient(), userId, {
+    const newChat = await memory.ShortTermMemoryModel.New(getClient(), userId, {
       createUid: () => randomUlid(),
     });
-    const newChatId = newChat.chatId;
-    const existingChats = await memory.ChatModel.AllChats(getClient(), userId, {
-      createUid: () => randomUlid(),
-    });
+    const newChatId = newChat.sessionId;
+    const existingChats = await memory.ShortTermMemoryModel.AllSessions(
+      getClient(),
+      userId,
+      {
+        createUid: () => randomUlid(),
+      },
+    );
 
     const chats = [
       ...existingChats.map((chat) => {
         return {
-          chatId: chat.chatId,
-          message: chat.messages[0]?.content ?? "New chat",
+          chatId: chat.sessionId,
+          message: chat.memories[0]?.content ?? "New chat",
         };
       }),
     ];
@@ -288,14 +292,18 @@ export async function switchChat(
       createUid: () => randomUlid(),
     };
 
-    const chats = await memory.ChatModel.AllChats(db, userId, options);
+    const chats = await memory.ShortTermMemoryModel.AllSessions(
+      db,
+      userId,
+      options,
+    );
 
     send(
       view.renderChats({
         chats: chats.map((chat) => {
           return {
-            chatId: chat.chatId,
-            message: chat.messages[0]?.content ?? "New chat",
+            chatId: chat.sessionId,
+            message: chat.memories[0]?.content ?? "New chat",
           };
         }),
         currentChatId: chatId,
@@ -308,8 +316,13 @@ export async function switchChat(
       }),
     );
 
-    const chat = await memory.ChatModel.FromChatId(db, userId, chatId, options);
-    const messages = await chat.messages();
+    const chat = await memory.ShortTermMemoryModel.FromSessionId(
+      db,
+      userId,
+      chatId,
+      options,
+    );
+    const messages = await chat.memories();
 
     for (const message of messages) {
       send(view.renderMessage(message));
@@ -340,8 +353,13 @@ export async function initializeChat(
     const options = {
       createUid: () => randomUlid(),
     };
-    const chat = await memory.ChatModel.FromChatId(db, userId, chatId, options);
-    const messages = await chat.messages();
+    const chat = await memory.ShortTermMemoryModel.FromSessionId(
+      db,
+      userId,
+      chatId,
+      options,
+    );
+    const messages = await chat.memories();
     const placeholder = messages.length === 0;
 
     send(
@@ -370,14 +388,18 @@ export async function getAllChats(userId: string) {
       userId,
     });
 
-    const existingChats = await memory.ChatModel.AllChats(getClient(), userId, {
-      createUid: () => randomUlid(),
-    });
+    const existingChats = await memory.ShortTermMemoryModel.AllSessions(
+      getClient(),
+      userId,
+      {
+        createUid: () => randomUlid(),
+      },
+    );
 
     return existingChats.map((chat) => {
       return {
-        chatId: chat.chatId,
-        message: chat.messages[0]?.content ?? "New chat",
+        chatId: chat.sessionId,
+        message: chat.memories[0]?.content ?? "New chat",
       };
     });
   } catch (error) {

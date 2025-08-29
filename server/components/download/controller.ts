@@ -1,8 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
-import { ctrl as markdown } from "../markdown";
+import { ctrl as markdown } from "../documents";
 import config from "../../config";
-import { MarkdownFile } from "../markdown/controller";
+import { Document } from "../documents/controller";
 
 export async function prepareForDownload(userId: string, pageName: string) {
   const files = await markdown.searchFiles(userId, pageName);
@@ -21,7 +21,7 @@ export async function prepareForDownload(userId: string, pageName: string) {
   return `${config.app.URL}/downloads/${userId}/${path.basename(filePath)}`;
 }
 
-export async function updateDownload(userId: string, file: MarkdownFile) {
+export async function updateDownload(userId: string, file: Document) {
   const dir = path.join(process.cwd(), "public", "downloads", userId);
   await fs.mkdir(dir, { recursive: true });
   const filePath = path.join(dir, `${file.id}.md`);

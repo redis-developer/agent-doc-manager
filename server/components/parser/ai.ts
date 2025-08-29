@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { llm } from "../../services/ai/ai";
 import { generateObject } from "ai";
-import { ChatMessage } from "../memory";
+import { ShortTermMemory } from "../memory";
 
 const CommandsEnumSchema = z.enum([
   "crawl_pages",
@@ -12,6 +12,58 @@ const CommandsEnumSchema = z.enum([
 ]);
 
 export type CommandEnum = z.infer<typeof CommandsEnumSchema>;
+
+const UrlAndInstructionsSchema = z.object({
+  url: z.string().describe("The URL described in the prompt"),
+  instructions: z.string().describe("The instructions described in the prompt"),
+});
+
+export type UrlAndInstructions = z.infer<typeof UrlAndInstructionsSchema>;
+
+export async function getUrlAndInstructions(
+  prompt: string,
+): Promise<UrlAndInstructions> {
+  const response = await generateObject({
+    model: llm.smallModel,
+    messages: [
+      {
+        role: "system",
+        content: `
+          You are an AI assistant that extracts a URL and instructions from a user prompt.
+
+          - The URL should be a valid URL starting with http:// or https://.
+          - The instructions should be a concise summary of what to do with the URL.
+          - If no URL is found, return an empty string for the URL and instructions.  
+          Examples:
+          1. Prompt: "Find all tutorial pages from https://example.com/tutorials"
+             Response: {
+               "url": "https://example.com/tutorials",
+               "instructions": "Find all tutorial pages."
+             }
+               
+          2. Prompt: "Extract the main content from http://blog.example.com"
+              Response: {
+                "url": "http://blog.example.com",
+                "instructions": "Extract the main content."
+              }
+                
+          3. Prompt: "Hello, how are you today?"
+              Response: {
+                "url": "",
+                "instructions": ""
+              }
+        `,
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    schema: UrlAndInstructionsSchema,
+  });
+
+  return response.object;
+}
 
 const CommandSchema = z.object({
   command: CommandsEnumSchema.describe("The command to execute"),
@@ -28,7 +80,7 @@ const CommandSchema = z.object({
 
 export type Command = z.infer<typeof CommandSchema>;
 
-export async function getCommand(messages: ChatMessage[]) {
+export async function getCommand(messages: ShortTermMemory[]) {
   const response = await generateObject({
     model: llm.smallModel,
     messages: [

@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Redis Chat</title>
+    <title>Chat</title>
     <link rel="icon" href="data:image/png;base64,iVBORw0KGgo=" />
     <script
       src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.5/dist/htmx.min.js"
@@ -22,16 +22,11 @@
       src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"
     ></script>
     <link rel="stylesheet" href="/styles.css" />
+    <script src="/events.js"></script>
     <script src="/log.js"></script>
     <script src="/highlight.js"></script>
   </head>
-  <body
-    class="h-screen bg-gray-500"
-    hx-ext="ws"
-    ws-connect="/chat"
-    hx-on:htmx:ws-after-message="document.querySelector('main').scrollTo(0, document.querySelector('main').scrollHeight)"
-    hx-boost="true"
-  >
+  <body class="h-screen bg-gray-500">
 
     {{{body}}}
 

@@ -1,20 +1,22 @@
 import * as tavily from "../../services/tavily/tavily";
-import * as markdown from "../markdown";
+import { ctrl as documents } from "../documents";
 
 export async function crawlUrl(
   userId: string,
+  projectId: string,
   url: string,
   instructions: string,
 ) {
-  const files = await tavily.crawl(url, instructions);
+  const pages = await tavily.crawl(url, instructions);
 
-  const addedFiles = await markdown.ctrl.addFiles(
+  const newDocuments = await documents.createMany(
     userId,
-    files.map((f) => ({
+    projectId,
+    pages.map((f) => ({
       url: f.url,
       content: f.rawContent,
     })),
   );
 
-  return addedFiles;
+  return newDocuments;
 }

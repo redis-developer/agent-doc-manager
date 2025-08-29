@@ -85,7 +85,7 @@ export class WorkingMemoryModel {
           throw new Error("You must provide an embed function");
         },
         distanceThreshold: 0.4,
-        topK: 1,
+        topK: 20,
       } as WorkingMemoryModelOptions,
       options,
     );

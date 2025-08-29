@@ -1,11 +1,11 @@
 import { generateText, stepCountIs } from "ai";
 import { llm } from "../../services/ai/ai";
 import { Tools } from "../../components/memory";
-import type { ChatMessage } from "../../components/memory";
+import type { ShortTermMemory } from "../../components/memory";
 import type { Command } from "../orchestrator";
 
 export async function answerPrompt(
-  messages: ChatMessage[],
+  messages: ShortTermMemory[],
   tools: Tools,
 ): Promise<string> {
   const { addMemoryTool, searchTool, updateMemoryTool } = tools.getTools();

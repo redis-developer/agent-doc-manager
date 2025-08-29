@@ -1,116 +1,264 @@
 import logger from "../../utils/log";
-import * as memory from "../memory";
-import { ctrl as parser } from "../parser";
+import { llm, embedText } from "../../services/ai/ai";
+import getClient from "../../redis";
+import { ShortTermMemoryModel, WorkingMemoryModel } from "../memory";
+import { randomUlid } from "../../utils/uid";
+import { CommandEnum, ctrl as parser } from "../parser";
 import { ctrl as crawler } from "../crawl";
 import { ctrl as download } from "../download";
-import { ctrl as markdown } from "../markdown";
-import { ctrl as responder } from "../responder";
+import { ctrl as documents } from "../documents";
+import { ctrl as projects } from "../projects";
 import { ctrl as qa } from "../qa";
+import { ctrl as responder } from "../responder";
+import * as view from "./view";
+import type { Project } from "../projects";
+import type { Document } from "../documents";
+import { all } from "../documents/controller";
+
+async function getProjectMemory(userId: string, projectId?: string) {
+  const redis = getClient();
+
+  return ShortTermMemoryModel.FromSessionId(redis, userId, projectId, {
+    createUid: randomUlid,
+  });
+}
+
+async function getWorkingMemory(userId: string) {
+  const redis = getClient();
+
+  return WorkingMemoryModel.New(redis, userId, {
+    createUid: randomUlid,
+    vectorDimensions: llm.dimensions,
+    embed: embedText,
+  });
+}
+
+export async function newProject(
+  send: (message: string) => void,
+  userId: string,
+) {
+  try {
+    logger.info(`Creating new project for user \`${userId}\``, {
+      userId,
+    });
+
+    const project = await projects.create(userId);
+
+    const allProjects = await projects.all(userId);
+
+    send(
+      view.renderProjects({
+        projects: allProjects,
+        currentProjectId: project.projectId,
+      }),
+    );
+
+    send(
+      view.renderInstructions({
+        instructions:
+          "Start by entering a project title and prompt, then you can get to work!",
+      }),
+    );
+
+    send(view.renderNewProject(project));
+
+    return project.projectId;
+  } catch (error) {
+    logger.error(`Failed to create new project for user \`${userId}\`:`, {
+      error,
+      userId,
+    });
+    throw error;
+  }
+}
+
+export async function switchProject(
+  send: (message: string) => void,
+  userId: string,
+  projectId: string,
+) {
+  const project = await projects.read(userId, projectId);
+
+  if (!project) {
+    logger.warn(`Project not found: ${projectId}`, {
+      userId,
+      projectId,
+    });
+    return;
+  }
+
+  const docs = await documents.all(userId, projectId);
+
+  if (docs.length === 0) {
+    send(
+      view.renderInstructions({
+        instructions:
+          "Start by entering a project title and prompt, then you can get to work!",
+      }),
+    );
+
+    send(view.renderNewProject(project));
+  } else {
+    send(
+      view.renderDocumentsList({
+        documents: docs,
+      }),
+    );
+  }
+
+  return project.projectId;
+}
+
+export async function crawlPages(
+  send: (message: string) => void,
+  userId: string,
+  projectId: string,
+  title: string,
+  prompt: string,
+) {
+  await projects.update(userId, projectId, title, prompt);
+  const { url, instructions } = await parser.extractUrlAndInstructions(prompt);
+  let docs: Document[] = [];
+  if (url && instructions) {
+    logger.info(`Crawl pages tool called for URL: ${url}`, {
+      userId,
+      projectId,
+      url,
+      instructions,
+    });
+    docs = await crawler.crawlUrl(userId, projectId, url, instructions);
+    logger.debug(`Crawl tool result: ${docs.length} URLs found`, {
+      userId,
+      projectId,
+    });
+  } else {
+    logger.warn(`No URL provided for crawl_pages command`, {
+      userId,
+      projectId,
+    });
+  }
+
+  send(
+    view.renderDocumentsList({
+      documents: docs,
+    }),
+  );
+}
+
+export async function editDocument(
+  send: (message: string) => void,
+  userId: string,
+  projectId: string,
+  documentId: string,
+) {
+  const doc = await documents.read(userId, documentId);
+
+  if (!doc) {
+    logger.warn(`Document not found: ${documentId}`, {
+      userId,
+      documentId,
+    });
+    return;
+  }
+
+  const allDocs = await documents.all(userId, projectId);
+
+  logger.info(`Enabling edit mode for document \`${documentId}\``, {
+    userId,
+    documentId,
+  });
+
+  send(
+    view.renderDocumentsList({
+      documents: allDocs,
+      currentDocumentId: documentId,
+    }),
+  );
+
+  allDocs.forEach((d) => {});
+}
 
 export async function processIncommingMessage(
   userId: string,
-  chat: memory.ChatModel,
+  project: Project,
+  command: CommandEnum,
+  prompt: string,
 ) {
-  const messages = await chat.messages();
-  const command = await parser.extractCommand(messages);
-  const lastUserMessage = messages[messages.length - 1].content;
+  const projectMemory = await getProjectMemory(userId, project.projectId);
+  const memories = await projectMemory.memories();
+  const workingMemory = await getWorkingMemory(userId);
+  const lastUserMemory = memories[memories.length - 1].content;
   let response = "";
 
   try {
-    switch (command.command) {
-      case "crawl_pages":
-        if (command.url && command.instructions) {
-          logger.info(`Crawl pages tool called for URL: ${command.url}`, {
-            userId,
-            url: command.url,
-            instructions: command.instructions,
-          });
-          const files = await crawler.crawlUrl(
-            userId,
-            command.url,
-            command.instructions,
-          );
-          logger.debug(`Crawl tool result: ${files.length} URLs found`, {
-            userId,
-          });
-          response = await responder.getResponse(
-            messages,
-            command,
-            `Extracted ${files.length} pages from ${command.url}:\n${files.map((f) => f.url).join("\n")}`,
-          );
-        } else {
-          logger.warn(`No URL provided for crawl_pages command`, {
-            userId,
-          });
-        }
-        break;
-      case "modify_text":
-        if (command.pageName && command.instructions) {
-          const files = await markdown.searchFiles(userId, command.pageName);
-          if (files.length === 0) {
-            logger.warn(`No file found with name \`${command.pageName}\``, {
-              userId,
-            });
-            response = `No file found with name \`${command.pageName}\``;
-            break;
-          }
-          const result = await markdown.modifyFileContent(
-            files[0],
-            command.instructions,
-          );
-          logger.info(`Modified the page: ${result.url}`, {
-            userId,
-          });
-          await download.updateDownload(userId, result);
-          response = await responder.getResponse(
-            messages,
-            command,
-            `Modified page ${command.pageName} based on instructions: ${command.instructions}`,
-          );
-        } else {
-          logger.warn(
-            `No pageName or instructions provided for modify_text command`,
-            {
-              userId,
-            },
-          );
+    switch (command) {
+      // case "modify_text":
+      //   if (command.pageName && command.instructions) {
+      //     const files = await markdown.searchFiles(userId, command.pageName);
+      //     if (files.length === 0) {
+      //       logger.warn(`No file found with name \`${command.pageName}\``, {
+      //         userId,
+      //       });
+      //       response = `No file found with name \`${command.pageName}\``;
+      //       break;
+      //     }
+      //     const result = await markdown.modifyFileContent(
+      //       files[0],
+      //       command.instructions,
+      //     );
+      //     logger.info(`Modified the page: ${result.url}`, {
+      //       userId,
+      //     });
+      //     await download.updateDownload(userId, result);
+      //     response = await responder.getResponse(
+      //       memories,
+      //       command,
+      //       `Modified page ${command.pageName} based on instructions: ${command.instructions}`,
+      //     );
+      //   } else {
+      //     logger.warn(
+      //       `No pageName or instructions provided for modify_text command`,
+      //       {
+      //         userId,
+      //       },
+      //     );
 
-          response =
-            "You need to provide both a page name and instructions to modify the text.";
-        }
-        break;
-      case "answer_question":
-        response = await qa.answerQuestion(userId, lastUserMessage);
-        break;
-      case "download_page":
-        if (command.pageName) {
-          try {
-            const url = await download.prepareForDownload(
-              userId,
-              command.pageName,
-            );
-            response = `You can download the page \`${command.pageName}\` here: ${url}`;
-          } catch (error) {
-            logger.error(`Download page tool failed:`, {
-              error,
-              userId,
-              pageName: command.pageName,
-            });
-            response = `Failed to prepare download for page \`${command.pageName}\``;
-          }
-        } else {
-          logger.warn(`No pageName provided for download_page command`, {
-            userId,
-          });
-          response = "You need to provide a page name to download.";
-        }
-        break;
+      //     response =
+      //       "You need to provide both a page name and instructions to modify the text.";
+      //   }
+      //   break;
+      // case "answer_question":
+      //   response = await qa.answerQuestion(userId, lastUserMemory);
+      //   break;
+      // case "download_page":
+      //   if (command.pageName) {
+      //     try {
+      //       const url = await download.prepareForDownload(
+      //         userId,
+      //         command.pageName,
+      //       );
+      //       response = `You can download the page \`${command.pageName}\` here: ${url}`;
+      //     } catch (error) {
+      //       logger.error(`Download page tool failed:`, {
+      //         error,
+      //         userId,
+      //         pageName: command.pageName,
+      //       });
+      //       response = `Failed to prepare download for page \`${command.pageName}\``;
+      //     }
+      //   } else {
+      //     logger.warn(`No pageName provided for download_page command`, {
+      //       userId,
+      //     });
+      //     response = "You need to provide a page name to download.";
+      //   }
+      //   break;
       case "none":
         // No action needed
         response = "You need to be more specific.";
         break;
       default:
-        logger.warn(`Unknown command: ${command.command}`, {
+        logger.warn(`Unknown command: ${command}`, {
           userId,
         });
         response = "You need to be more specific.";
@@ -120,7 +268,7 @@ export async function processIncommingMessage(
     logger.error("Failed to process incoming message:", {
       error,
       userId,
-      lastUserMessage,
+      lastUserMessage: lastUserMemory,
       command,
     });
     response = "Sorry, something went wrong while processing your message.";

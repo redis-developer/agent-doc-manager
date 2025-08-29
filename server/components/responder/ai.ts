@@ -1,10 +1,10 @@
 import { llm } from "../../services/ai/ai";
 import { generateText } from "ai";
-import { ChatMessage } from "../memory";
+import { ShortTermMemory } from "../memory";
 import type { Command } from "../parser";
 
 export async function generateResponse(
-  messages: ChatMessage[],
+  messages: ShortTermMemory[],
   command: Command,
   initialResponse: string | null = null,
 ): Promise<string> {

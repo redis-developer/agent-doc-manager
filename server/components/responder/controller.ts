@@ -3,7 +3,7 @@ import type { Command } from "../parser";
 import { generateResponse } from "./ai";
 
 export async function getResponse(
-  messages: memory.ChatMessage[],
+  messages: memory.ShortTermMemory[],
   command: Command,
   initialResponse: string,
 ) {

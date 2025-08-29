@@ -42,7 +42,7 @@ const messageTemplate = Handlebars.compile(
   fs.readFileSync(path.join(viewsPath, "chat/message.hbs"), "utf8"),
 );
 const chatsTemplate = Handlebars.compile(
-  fs.readFileSync(path.join(viewsPath, "sidebar/chats.hbs"), "utf8"),
+  fs.readFileSync(path.join(viewsPath, "chat/sidebar/chats.hbs"), "utf8"),
 );
 
 /**
