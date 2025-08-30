@@ -624,15 +624,33 @@ export async function clearMemory(
     });
 
     const db = getClient();
-    const keys = await db.keys("users:*");
-    const semantic = await db.keys("semantic-memory*");
+    const allKeys = await db.keys("users:*");
+    const sessions = await db.keys("session:*");
+    const semantic = await db.keys("semantic-memory:*");
+    const chunks = await db.keys("document-chunks:*");
+    const docs = await db.keys("documents:*");
+    const allProjects = await db.keys("projects:*");
 
-    if (Array.isArray(semantic) && semantic.length > 0) {
-      keys.push(...semantic);
+    allKeys.push("ERROR_STREAM", "LOG_STREAM");
+
+    if (Array.isArray(allProjects) && allProjects.length > 0) {
+      allKeys.push(...allProjects);
     }
 
-    if (Array.isArray(keys) && keys.length > 0) {
-      await db.del(keys);
+    if (Array.isArray(docs) && docs.length > 0) {
+      allKeys.push(...docs);
+    }
+
+    if (Array.isArray(chunks) && chunks.length > 0) {
+      allKeys.push(...chunks);
+    }
+
+    if (Array.isArray(semantic) && semantic.length > 0) {
+      allKeys.push(...semantic);
+    }
+
+    if (Array.isArray(allKeys) && allKeys.length > 0) {
+      await db.del(allKeys);
     }
 
     const indexes = await db.ft._list();
@@ -640,12 +658,21 @@ export async function clearMemory(
     await Promise.all(
       indexes
         .filter((index) => {
-          return index.includes(userId) || index.includes("semantic-memory");
+          return (
+            index.includes("users") ||
+            index.includes("semantic-memory") ||
+            index.includes("projects") ||
+            index.includes("documents") ||
+            index.includes("document-chunks")
+          );
         })
         .map(async (index) => {
           await db.ft.dropIndex(index);
         }),
     );
+
+    await projects.initialize();
+    await documents.initialize();
 
     send(view.clearMessages());
   } catch (error) {
