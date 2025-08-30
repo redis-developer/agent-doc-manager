@@ -11,14 +11,14 @@
         <div class="space-x-2 flex flex-row">
           {{#if selected}}
             <form ws-send hx-disabled-elt="this" class="inline">
-                <input type="hidden" name="cmd" value="close_document" />
+                <input type="hidden" name="cmd" value="projects/close" />
                 <input type="hidden" name="documentId" value="{{id}}" />
                 <input type="hidden" name="editing" value="{{editing}}" />
                 <button type="submit" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">x</button>
             </form>
           {{else}}
             <form ws-send hx-disabled-elt="this" class="inline">
-                <input type="hidden" name="cmd" value="open_document" />
+                <input type="hidden" name="cmd" value="projects/open" />
                 <input type="hidden" name="documentId" value="{{id}}" />
                 <input type="hidden" name="editing" value="{{editing}}" />
                 <button type="submit" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">✎</button>
@@ -35,7 +35,7 @@
       class="w-full items-center space-x-2"
       hx-disabled-elt="this"
       >
-      <input type="hidden" name="cmd" value="diff_document" />
+      <input type="hidden" name="cmd" value="documents/diff" />
       <input type="hidden" name="documentId" value="{{id}}" />
       <div class="relative flex w-full items-end px-2.5 py-4">
         <div class="relative flex w-full flex-auto flex-col">

@@ -2,7 +2,7 @@ import express from "express";
 import { engine } from "express-handlebars";
 import type { HelperOptions } from "handlebars";
 import session from "./utils/session";
-import { ctrl as chat } from "./components/chat";
+import { ctrl as chat } from "./components/chats";
 import { ctrl as documents } from "./components/documents";
 import { ctrl as projects } from "./components/projects";
 
@@ -40,7 +40,7 @@ app.get("/chat", async (req, res) => {
   const userId = req.session.id;
   // @ts-ignore
   const currentChatId = req.session.currentChatId;
-  const chats = await chat.getAllChats(userId);
+  const chats = await chat.getChatsWithTopMessage(userId);
 
   res.render("chat", {
     page: "chat",
@@ -53,6 +53,7 @@ app.get("/chat", async (req, res) => {
 
 app.get("/", async (req, res) => {
   const userId = req.session.id;
+
   // @ts-ignore
   const currentProjectId = req.session.currentProjectId;
   const allProjects = await projects.all(userId);

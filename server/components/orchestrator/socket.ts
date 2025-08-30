@@ -4,15 +4,15 @@ import type { Request } from "express";
 import logger, { logWst } from "../../utils/log";
 import { randomUlid } from "../../utils/uid";
 import session from "../../utils/session";
-import * as ctrl from "./controller";
-import { use } from "marked";
+import * as orchestrator from "./controller";
+import { ctrl as chatCtrl } from "../chats";
 
 export const wss = new WebSocketServer({ noServer: true });
 
 /**
  * Handles WebSocket connections and messages.
  */
-function onConnection(ws: WebSocket, req: Request) {
+function onConnection(ws: WebSocket, req: Request, type: "chat" | "projects") {
   session(req, {} as any, async () => {
     const userId = req.session.id;
 
@@ -38,21 +38,22 @@ function onConnection(ws: WebSocket, req: Request) {
     });
 
     let currentProjectId: string | undefined;
+    let currentChatId: string | undefined;
 
     ws.on("error", logger.error);
     ws.on("message", async (data) => {
       const form = JSON.parse(data.toString());
 
       switch (form.cmd) {
-        case "new_project":
-          currentProjectId = await ctrl.newProject(send, userId);
+        case "projects/new":
+          currentProjectId = await orchestrator.newProject(send, userId);
 
           // @ts-ignore
           req.session.currentProjectId = currentProjectId;
           req.session.save();
           break;
-        case "switch_project":
-          currentProjectId = await ctrl.switchProject(
+        case "projects/switch":
+          currentProjectId = await orchestrator.switchProject(
             send,
             userId,
             form.projectId,
@@ -61,7 +62,7 @@ function onConnection(ws: WebSocket, req: Request) {
           req.session.currentProjectId = currentProjectId;
           req.session.save();
           break;
-        case "start_project":
+        case "projects/start":
           if (form.projectId !== currentProjectId) {
             logger.warn("Project ID mismatch", {
               userId,
@@ -73,10 +74,16 @@ function onConnection(ws: WebSocket, req: Request) {
 
           const { projectId, title, prompt } = form;
 
-          await ctrl.crawlPages(send, userId, projectId, title, prompt);
+          await orchestrator.startProject(
+            send,
+            userId,
+            projectId,
+            title,
+            prompt,
+          );
           break;
-        case "open_document":
-          await ctrl.openDocument(
+        case "projects/open":
+          await orchestrator.openDocument(
             send,
             userId,
             currentProjectId!,
@@ -84,8 +91,8 @@ function onConnection(ws: WebSocket, req: Request) {
             form.editing === "true",
           );
           break;
-        case "close_document":
-          await ctrl.closeDocument(
+        case "projects/close":
+          await orchestrator.closeDocument(
             send,
             userId,
             currentProjectId!,
@@ -93,8 +100,8 @@ function onConnection(ws: WebSocket, req: Request) {
             form.editing === "true",
           );
           break;
-        case "diff_document":
-          await ctrl.diffDocument(
+        case "documents/diff":
+          await orchestrator.diffDocument(
             send,
             userId,
             currentProjectId!,
@@ -102,8 +109,8 @@ function onConnection(ws: WebSocket, req: Request) {
             form.content,
           );
           break;
-        case "confirm_changes":
-          await ctrl.confirmChanges(
+        case "documents/confirm":
+          await orchestrator.confirmChanges(
             send,
             userId,
             currentProjectId!,
@@ -112,19 +119,97 @@ function onConnection(ws: WebSocket, req: Request) {
             form.action,
           );
           break;
+        case "chats/messages/new":
+          let resultId = await orchestrator.newChatMessage(send, {
+            userId,
+            chatId: currentChatId,
+            message: form.message,
+          });
+
+          if (resultId) {
+            currentChatId = resultId;
+            // @ts-ignore
+            req.session.currentChatId = currentChatId;
+            req.session.save();
+          }
+          break;
+        case "chats/new":
+          currentChatId = `chat-${randomUlid()}`;
+
+          currentChatId = await orchestrator.newChat(send, userId);
+
+          // @ts-ignore
+          req.session.currentChatId = currentChatId;
+          req.session.save();
+          break;
+        case "chats/switch":
+          if (!form.chatId) {
+            logger.warn("No chatId provided for chats/switch command", {
+              userId,
+            });
+            return;
+          }
+          if (form.chatId === currentChatId) {
+            return;
+          }
+
+          currentChatId = form.chatId;
+          // @ts-ignore
+          req.session.currentChatId = currentChatId;
+          req.session.save();
+
+          await orchestrator.switchChat(send, userId, currentChatId!);
+          break;
+        case "users/new":
+          logWst.removeUser(userId);
+          req.session.destroy(function (err) {
+            if (err) {
+              logger.error("Failed to regenerate session", { error: err });
+              return;
+            }
+          });
+          break;
+        case "data/clear":
+          await orchestrator.clearMemory(send, userId);
+          logWst.removeUser(userId);
+          req.session.destroy(function (err) {
+            if (err) {
+              logger.error("Failed to regenerate session", { error: err });
+              return;
+            }
+          });
+          break;
         default:
           logger.warn("Unknown command received", { cmd: form.cmd, userId });
           return;
       }
     });
 
-    currentProjectId = await ctrl.initializeProjects(
-      send,
-      userId,
-      currentProjectId,
-    );
-    // @ts-ignore
-    req.session.currentProjectId = currentProjectId;
+    switch (type) {
+      case "projects":
+        currentProjectId = await orchestrator.initializeProjects(
+          send,
+          userId,
+          currentProjectId,
+        );
+        // @ts-ignore
+        req.session.currentProjectId = currentProjectId;
+        break;
+      case "chat":
+        currentChatId = await orchestrator.initializeChat(
+          send,
+          userId,
+          currentChatId,
+        );
+
+        // @ts-ignore
+        req.session.currentChatId = currentChatId;
+        break;
+      default:
+        logger.warn("Unknown WebSocket type", { type, userId });
+        return;
+    }
+
     req.session.save();
   });
 }

@@ -1,7 +1,7 @@
 import getClient from "../../redis";
 import { embedText, llm } from "../../services/ai/ai";
 import { randomUlid } from "../../utils/uid";
-import { ctrl as markdown } from "../documents";
+import { ctrl as documents } from "../documents";
 import * as memory from "../memory";
 import { answerQuestionWithRag } from "./ai";
 
@@ -15,7 +15,11 @@ async function getWorkingMemory(userId: string) {
   });
 }
 
-export async function answerQuestion(userId: string, prompt: string) {
+export async function answerQuestion(
+  userId: string,
+  projectId: string,
+  prompt: string,
+) {
   const workingMemory = await getWorkingMemory(userId);
 
   const existingResponse = await workingMemory.searchSemanticMemory(prompt);
@@ -24,7 +28,7 @@ export async function answerQuestion(userId: string, prompt: string) {
     return existingResponse[0].answer;
   }
 
-  const files = await markdown.searchFiles(userId, prompt);
+  const files = await documents.search(userId, projectId, prompt);
 
   if (files.length === 0) {
     return "No relevant information found.";

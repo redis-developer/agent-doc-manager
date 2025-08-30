@@ -5,9 +5,9 @@ import { ShortTermMemoryModel, WorkingMemoryModel } from "../memory";
 import { randomUlid } from "../../utils/uid";
 import { CommandEnum, ctrl as parser } from "../parser";
 import { ctrl as crawler } from "../crawl";
-import { ctrl as download } from "../download";
 import { ctrl as documents } from "../documents";
 import { ctrl as projects } from "../projects";
+import { ctrl as chats } from "../chats";
 import { ctrl as qa } from "../qa";
 import { ctrl as responder } from "../responder";
 import * as view from "./view";
@@ -98,7 +98,7 @@ export async function newProject(
       }),
     );
 
-    send(view.renderNewProject(project));
+    send(view.renderNewProjectForm(project));
 
     return project.projectId;
   } catch (error) {
@@ -135,7 +135,7 @@ export async function switchProject(
       }),
     );
 
-    send(view.renderNewProject(project));
+    send(view.renderNewProjectForm(project));
   } else {
     send(
       view.renderDocumentsList({
@@ -145,6 +145,32 @@ export async function switchProject(
   }
 
   return project.projectId;
+}
+
+export async function startProject(
+  send: (message: string) => void,
+  userId: string,
+  projectId: string,
+  title: string,
+  prompt: string,
+) {
+  send(
+    view.renderInstructions({
+      instructions: "Kicking off project...",
+      progress: true,
+    }),
+  );
+
+  send(view.renderNewProjectForm());
+
+  await crawlPages(send, userId, projectId, title, prompt);
+
+  send(
+    view.renderInstructions({
+      instructions: "",
+      progress: false,
+    }),
+  );
 }
 
 export async function crawlPages(
@@ -279,7 +305,7 @@ export async function diffDocument(
     view.renderPopupForm({
       show: true,
       id: documentId,
-      cmd: "confirm_changes",
+      cmd: "documents/confirm",
       content: actions.join("\n\n"),
     }),
   );
@@ -422,101 +448,211 @@ export async function confirmChanges(
   );
 }
 
-export async function processIncommingMessage(
+/**
+ * Clears all messages for a given user.
+ */
+export async function clearChat(
+  send: (message: string) => void,
   userId: string,
-  project: Project,
-  command: CommandEnum,
-  prompt: string,
+  chatId: string,
 ) {
-  const projectMemory = await getProjectMemory(userId, project.projectId);
-  const memories = await projectMemory.memories();
-  const workingMemory = await getWorkingMemory(userId);
-  const lastUserMemory = memories[memories.length - 1].content;
-  let response = "";
+  try {
+    logger.debug(`Clearing messages for user \`${userId}\``, {
+      userId: userId,
+    });
+
+    await chats.clearChat(userId, chatId);
+    send(view.clearMessages());
+  } catch (error) {
+    logger.error(`Failed to delete messages for user ${userId}:`, {
+      error,
+      userId: userId,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Handles incoming chat messages from the client.
+ */
+export async function newChatMessage(
+  send: (message: string) => void,
+  info: { userId: string; chatId?: string; message: string },
+): Promise<string | undefined> {
+  const botChatId = `bot-${randomUlid()}`;
 
   try {
-    switch (command) {
-      // case "modify_text":
-      //   if (command.pageName && command.instructions) {
-      //     const files = await markdown.searchFiles(userId, command.pageName);
-      //     if (files.length === 0) {
-      //       logger.warn(`No file found with name \`${command.pageName}\``, {
-      //         userId,
-      //       });
-      //       response = `No file found with name \`${command.pageName}\``;
-      //       break;
-      //     }
-      //     const result = await markdown.modifyFileContent(
-      //       files[0],
-      //       command.instructions,
-      //     );
-      //     logger.info(`Modified the page: ${result.url}`, {
-      //       userId,
-      //     });
-      //     await download.updateDownload(userId, result);
-      //     response = await responder.getResponse(
-      //       memories,
-      //       command,
-      //       `Modified page ${command.pageName} based on instructions: ${command.instructions}`,
-      //     );
-      //   } else {
-      //     logger.warn(
-      //       `No pageName or instructions provided for modify_text command`,
-      //       {
-      //         userId,
-      //       },
-      //     );
-
-      //     response =
-      //       "You need to provide both a page name and instructions to modify the text.";
-      //   }
-      //   break;
-      // case "answer_question":
-      //   response = await qa.answerQuestion(userId, lastUserMemory);
-      //   break;
-      // case "download_page":
-      //   if (command.pageName) {
-      //     try {
-      //       const url = await download.prepareForDownload(
-      //         userId,
-      //         command.pageName,
-      //       );
-      //       response = `You can download the page \`${command.pageName}\` here: ${url}`;
-      //     } catch (error) {
-      //       logger.error(`Download page tool failed:`, {
-      //         error,
-      //         userId,
-      //         pageName: command.pageName,
-      //       });
-      //       response = `Failed to prepare download for page \`${command.pageName}\``;
-      //     }
-      //   } else {
-      //     logger.warn(`No pageName provided for download_page command`, {
-      //       userId,
-      //     });
-      //     response = "You need to provide a page name to download.";
-      //   }
-      //   break;
-      case "none":
-        // No action needed
-        response = "You need to be more specific.";
-        break;
-      default:
-        logger.warn(`Unknown command: ${command}`, {
-          userId,
-        });
-        response = "You need to be more specific.";
-        break;
-    }
+    return chats.newChatMessage(view.renderMessage, {
+      ...info,
+      botChatId,
+    });
   } catch (error) {
-    logger.error("Failed to process incoming message:", {
+    console.log(error);
+    logger.error(`Error handling message:`, {
+      error,
+      userId: info.userId,
+    });
+
+    send(
+      view.renderMessage({
+        id: botChatId,
+        content: "An error occurred while processing your message.",
+        role: "assistant",
+      }),
+    );
+  }
+}
+
+/**
+ * Creates a new chat user.
+ */
+export async function newChat(
+  send: (message: string) => void,
+  userId: string,
+): Promise<string> {
+  try {
+    logger.debug(`Creating new chat for user \`${userId}\``, {
+      userId,
+    });
+    const newChatId = await chats.newChat(userId);
+    const allChats = await chats.getChatsWithTopMessage(userId);
+
+    send(
+      view.renderChats({
+        chats: allChats,
+        currentChatId: newChatId,
+      }),
+    );
+
+    send(
+      view.clearMessages({
+        placeholder: true,
+      }),
+    );
+
+    return newChatId;
+  } catch (error) {
+    logger.error(`Failed to create new chat for user \`${userId}\`:`, {
       error,
       userId,
-      lastUserMessage: lastUserMemory,
-      command,
     });
-    response = "Sorry, something went wrong while processing your message.";
+    throw error;
   }
+}
 
-  return response;
+/**
+ * Switches the current chat user to a different chat.
+ */
+export async function switchChat(
+  send: (message: string) => void,
+  userId: string,
+  chatId: string,
+) {
+  try {
+    logger.debug(`Switching to chat \`${chatId}\` for user \`${userId}\``, {
+      userId,
+    });
+
+    send(
+      view.renderChats({
+        chats: await chats.getChatsWithTopMessage(userId),
+        currentChatId: chatId,
+      }),
+    );
+
+    const chat = await chats.getChatSession(userId, chatId);
+    const memories = await chat.memories();
+
+    send(
+      view.clearMessages({
+        placeholder: memories.length === 0,
+      }),
+    );
+
+    for (const memory of memories) {
+      send(view.renderMessage(memory));
+    }
+  } catch (error) {
+    logger.error(`Failed to switch chat for user \`${userId}\`:`, {
+      error,
+      userId,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Initializes the chat by sending all previous messages to the WebSocket client.
+ */
+export async function initializeChat(
+  send: (message: string) => void,
+  userId: string,
+  chatId?: string,
+) {
+  try {
+    logger.debug(`Initializing chat for user \`${userId}\``, {
+      userId,
+    });
+
+    if (!chatId) {
+      const allChats = await chats.getChatsWithTopMessage(userId);
+
+      chatId = allChats[0].chatId;
+    }
+
+    await switchChat(send, userId, chatId);
+
+    return chatId;
+  } catch (error) {
+    logger.error(`Failed to initialize chat for user \`${userId}\`:`, {
+      error,
+      userId,
+    });
+  }
+}
+
+/**
+ * Clears the entire store.
+ */
+export async function clearMemory(
+  send: (message: string) => void,
+  userId: string,
+) {
+  try {
+    logger.debug("Clearing Redis", {
+      userId,
+    });
+
+    const db = getClient();
+    const keys = await db.keys("users:*");
+    const semantic = await db.keys("semantic-memory*");
+
+    if (Array.isArray(semantic) && semantic.length > 0) {
+      keys.push(...semantic);
+    }
+
+    if (Array.isArray(keys) && keys.length > 0) {
+      await db.del(keys);
+    }
+
+    const indexes = await db.ft._list();
+
+    await Promise.all(
+      indexes
+        .filter((index) => {
+          return index.includes(userId) || index.includes("semantic-memory");
+        })
+        .map(async (index) => {
+          await db.ft.dropIndex(index);
+        }),
+    );
+
+    send(view.clearMessages());
+  } catch (error) {
+    logger.error("Failed to clear memory:", {
+      error,
+      userId,
+    });
+    throw error;
+  }
 }

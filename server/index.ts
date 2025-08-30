@@ -3,8 +3,7 @@ import app, { initialize } from "./app";
 import logger, { logWss } from "./utils/log";
 import { IncomingMessage } from "http";
 import { Duplex } from "stream";
-import * as chat from "./components/chat";
-import * as orchestrator from "./components/orchestrator";
+import { socket as orchestrator } from "./components/orchestrator";
 
 const port = config.env.PORT;
 
@@ -29,13 +28,13 @@ function onUpgrade(
 
   switch (url) {
     case "/chat":
-      chat.socket.wss.handleUpgrade(req, socket, head, (ws) => {
-        chat.socket.wss.emit("connection", ws, req);
+      orchestrator.wss.handleUpgrade(req, socket, head, (ws) => {
+        orchestrator.wss.emit("connection", ws, req, "chat");
       });
       break;
-    case "/socket":
-      orchestrator.socket.wss.handleUpgrade(req, socket, head, (ws) => {
-        orchestrator.socket.wss.emit("connection", ws, req);
+    case "/projects":
+      orchestrator.wss.handleUpgrade(req, socket, head, (ws) => {
+        orchestrator.wss.emit("connection", ws, req, "projects");
       });
       break;
     case "/log":

@@ -1,11 +1,12 @@
 <div hx-swap-oob="outerHTML:#content-body" id="content-body" class="mt-3 flex w-full max-w-2/3 items-center justify-center rounded-t-lg bg-transparent pb-4">
+{{#if projectId}}
     <form
         ws-send
         hx-on:submit="setTimeout(this.reset.bind(this), 200)"
         class="w-full items-center space-x-2"
         hx-disabled-elt="this"
     >
-        <input type="hidden" name="cmd" value="start_project" />
+        <input type="hidden" name="cmd" value="projects/start" />
         <input type="hidden" name="projectId" value="{{projectId}}" />
         <div class="mb-2">
           <label for="title">Title: </label>
@@ -31,4 +32,5 @@
             </div>
         </div>
     </form>
+{{/if}}
 </div>
