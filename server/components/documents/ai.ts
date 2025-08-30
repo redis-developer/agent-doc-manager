@@ -130,3 +130,59 @@ export async function chunkFile(content: string, maxChunkSize: number = 1000) {
 
   return response.object;
 }
+
+const DocumentDiffSchema = z.object({
+  actions: z
+    .array(z.string())
+    .describe(
+      "A list of generic actions to apply to other documents based on the changes made to this document",
+    ),
+});
+
+export type DocumentDiff = z.infer<typeof DocumentDiffSchema>;
+
+export async function getDiffSummary(oldText: string, newText: string) {
+  const response = await generateObject({
+    model: llm.largeModel,
+    messages: [
+      {
+        role: "system",
+        content: `
+        You are an AI assistant that summarizes the differences between two versions of a text document.
+
+        The document has been modified slightly, and your job is to identify those modifications generically so they can be applied to severl other documents.
+
+        Don't worry about the specific content, just focus on the types of changes made and similar actions that can be taken to edit other documents accordingly.
+
+        Examples of actions include:
+        - "Add fenced code blocks for all code snippets and supply the language for the code blocks."
+        - "Remove empty sections"
+        - "Remove sections up to the first major heading (H1)."
+        - "Convert inline code snippets to fenced code blocks."
+        - "Make sure fenced code blocks have a language specified."
+        - "Adjust fenced code blocks to not have line numbers."
+        - "Remove outdated sections that are no longer relevant."
+      `,
+      },
+      {
+        role: "user",
+        content: `
+        Here is the old version of the text:
+        """
+        ${oldText}
+        """
+
+        Here is the new version of the text:
+        """
+        ${newText}
+        """
+
+        Please summarize the differences between these two versions.
+      `,
+      },
+    ],
+    schema: DocumentDiffSchema,
+  });
+
+  return response.object;
+}

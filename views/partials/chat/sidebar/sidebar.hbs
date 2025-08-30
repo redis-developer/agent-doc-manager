@@ -8,9 +8,9 @@
       </a>
     </li>
     <li class="truncate cursor-pointer rounded bg-gray-200 bg-gray-300">
-      <a href="/chat" class="block w-full p-2 text-left text-gray-600">
+      <div class="block w-full p-2 text-left text-gray-600">
       QA
-      </a>
+      </div>
     </li>
   </ul>
   <ul class="my-2">
@@ -24,8 +24,9 @@
     </li>
   </ul>
   <p class="text-md text-gray-500 my-2">Chats</p>
-  {{> chat/sidebar/chats}}
-
+  <div id="sidebarChats">
+    {{> chat/sidebar/chats}}
+  </div>
   <div class="grow"></div>
   <ul>
       <li class="text-xs text-gray-500 cursor-pointer">

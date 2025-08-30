@@ -66,7 +66,7 @@ export async function create(userId: string) {
 
     await db.json.set(`projects:${id}`, "$", project as any);
 
-    logger.info(`Created new project \`${id}\` for user \`${userId}\``, {
+    logger.debug(`Created new project \`${id}\` for user \`${userId}\``, {
       projectId: id,
       userId,
     });

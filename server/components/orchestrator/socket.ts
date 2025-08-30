@@ -33,7 +33,7 @@ function onConnection(ws: WebSocket, req: Request) {
       }
     };
 
-    logger.debug("Chat websocket connection established", {
+    logger.debug("Projects websocket connection established", {
       userId: req.session.id,
     });
 
@@ -81,6 +81,7 @@ function onConnection(ws: WebSocket, req: Request) {
             userId,
             currentProjectId!,
             form.documentId,
+            form.editing,
           );
           break;
         case "close_document":
@@ -89,6 +90,26 @@ function onConnection(ws: WebSocket, req: Request) {
             userId,
             currentProjectId!,
             form.documentId,
+            form.editing,
+          );
+          break;
+        case "diff_document":
+          await ctrl.diffDocument(
+            send,
+            userId,
+            currentProjectId!,
+            form.documentId,
+            form.content,
+          );
+          break;
+        case "confirm_changes":
+          await ctrl.confirmChanges(
+            send,
+            userId,
+            currentProjectId!,
+            form.id,
+            form.content,
+            form.action,
           );
           break;
         default:
@@ -97,9 +118,14 @@ function onConnection(ws: WebSocket, req: Request) {
       }
     });
 
-    // if (currentProjectId) {
-    //   await ctrl.initializeChat(send, userId, currentProjectId);
-    // }
+    currentProjectId = await ctrl.initializeProjects(
+      send,
+      userId,
+      currentProjectId,
+    );
+    // @ts-ignore
+    req.session.currentProjectId = currentProjectId;
+    req.session.save();
   });
 }
 

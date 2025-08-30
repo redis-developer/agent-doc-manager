@@ -112,14 +112,16 @@ export async function createIndexIfNotExists() {
 async function split(document: Document): Promise<DocumentChunk[]> {
   const chunkSize = 10;
 
-  logger.info(`Splitting document ${document.url} for user ${document.userId}`);
+  logger.debug(
+    `Splitting document ${document.url} for user ${document.userId}`,
+  );
   const splitter = new MarkdownTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 0,
   });
   const chunks = await splitter.splitText(document.content);
   // const { chunks } = await chunkFile(document.content);
-  logger.info(`File split into ${chunks.length} chunks`);
+  logger.debug(`File split into ${chunks.length} chunks`);
 
   const allChunks: DocumentChunk[] = [];
 
@@ -475,4 +477,47 @@ export async function modifyContent(document: Document, prompt: string) {
   );
 
   return document;
+}
+
+export async function diff(
+  userId: string,
+  documentId: string,
+  newContent: string,
+) {
+  const document = await read(userId, documentId);
+
+  if (!document) {
+    throw new Error(`Document not found: ${documentId}`);
+  }
+
+  const diffSummary = await ai.getDiffSummary(document.content, newContent);
+
+  return diffSummary;
+}
+
+export async function applyToOne(
+  userId: string,
+  documentId: string,
+  actions: string,
+) {
+  const document = await read(userId, documentId);
+  if (!document) {
+    throw new Error(`Document not found: ${documentId}`);
+  }
+
+  return modifyContent(document, actions);
+}
+
+export async function applyToAll(
+  progress: (document: Document) => void,
+  userId: string,
+  projectId: string,
+  actions: string,
+) {
+  const documents = await all(userId, projectId);
+
+  for (const document of documents) {
+    const updatedDocument = await modifyContent(document, actions);
+    progress(updatedDocument);
+  }
 }

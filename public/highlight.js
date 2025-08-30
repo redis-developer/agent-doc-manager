@@ -3,3 +3,7 @@ document.addEventListener("htmx:wsAfterMessage", (event) => {
     hljs.highlightElement(el);
   });
 });
+
+document.addEventListener("htmx:oobErrorNoTarget", (event) => {
+  console.log(event);
+});

@@ -34,6 +34,41 @@ function markdown(options: HelperOptions) {
 Handlebars.registerHelper("markdown", markdown);
 Handlebars.registerHelper("isEqual", isEqual);
 Handlebars.registerHelper("ifEqual", ifEqual);
+Handlebars.registerPartial(
+  "projects/document",
+  fs.readFileSync(
+    path.join(process.cwd(), "./views/partials/projects/document.hbs"),
+    "utf8",
+  ),
+);
+Handlebars.registerPartial(
+  "projects/documentsList",
+  fs.readFileSync(
+    path.join(process.cwd(), "./views/partials/projects/documentsList.hbs"),
+    "utf8",
+  ),
+);
+Handlebars.registerPartial(
+  "projects/instructions",
+  fs.readFileSync(
+    path.join(process.cwd(), "./views/partials/projects/instructions.hbs"),
+    "utf8",
+  ),
+);
+Handlebars.registerPartial(
+  "projects/newProject",
+  fs.readFileSync(
+    path.join(process.cwd(), "./views/partials/projects/newProject.hbs"),
+    "utf8",
+  ),
+);
+Handlebars.registerPartial(
+  "projects/popupForm",
+  fs.readFileSync(
+    path.join(process.cwd(), "./views/partials/projects/popupForm.hbs"),
+    "utf8",
+  ),
+);
 
 const viewsPath = path.join(process.cwd(), "./views/partials");
 
@@ -49,8 +84,14 @@ const newProjectTemplate = Handlebars.compile(
 const documentsListTemplate = Handlebars.compile(
   fs.readFileSync(path.join(viewsPath, "projects/documentsList.hbs"), "utf8"),
 );
+const documentTemplate = Handlebars.compile(
+  fs.readFileSync(path.join(viewsPath, "projects/document.hbs"), "utf8"),
+);
 const instructionsTemplate = Handlebars.compile(
   fs.readFileSync(path.join(viewsPath, "projects/instructions.hbs"), "utf8"),
+);
+const popupFormTemplate = Handlebars.compile(
+  fs.readFileSync(path.join(viewsPath, "projects/popupForm.hbs"), "utf8"),
 );
 
 /**
@@ -61,7 +102,7 @@ export function renderProjects({
   currentProjectId,
 }: {
   projects: Array<{ projectId: string; title: string }>;
-  currentProjectId: string;
+  currentProjectId?: string;
 }) {
   return projectsTemplate({
     projects,
@@ -81,17 +122,36 @@ export function renderNewProject(project: Project) {
  */
 export function renderDocumentsList({
   documents,
-  currentDocumentId,
 }: {
-  documents: Document[];
-  currentDocumentId?: string;
+  documents: (Document & { editing?: boolean; selected?: boolean })[];
 }) {
-  return documentsListTemplate({ documents, currentDocumentId });
+  return documentsListTemplate({ documents });
+}
+
+/**
+ * Renders a single document.
+ */
+export function renderDocument(
+  document: Document & { editing?: boolean; selected?: boolean },
+) {
+  return documentTemplate(document);
 }
 
 /**
  * Renders the instructions section.
  */
-export function renderInstructions({ instructions }: { instructions: string }) {
-  return instructionsTemplate({ instructions });
+export function renderInstructions(data: {
+  instructions: string;
+  progress?: boolean;
+}) {
+  return instructionsTemplate(data);
+}
+
+export function renderPopupForm(data: {
+  show: boolean;
+  id: string;
+  cmd: string;
+  content: string;
+}) {
+  return popupFormTemplate(data);
 }
