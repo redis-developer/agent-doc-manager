@@ -1,8 +1,10 @@
 import { generateText, stepCountIs } from "ai";
+import type { Tool } from "ai";
 import { llm } from "../../services/ai/ai";
-import { Tools } from "../../components/memory";
-import type { ShortTermMemory } from "../../components/memory";
+import type { ShortTermMemory, Tools } from "../../components/memory";
 import type { Command } from "../orchestrator";
+import type { DocumentChunk } from "../documents";
+import { addSemanticMemoryToolInput } from "../memory/tools";
 
 export async function answerPrompt(
   messages: ShortTermMemory[],
@@ -17,7 +19,7 @@ export async function answerPrompt(
         role: "system",
         content: `
             Answer the latest user question to the best of your ability. The following tools are available to you:
-            - Call the \`${searchTool.name}\` tool if you need to search user memory for relevant information. 
+            - Call the \`${searchTool.name}\` tool if you need to search user memory for relevant information.
                 - Appropriate times to use the \`${searchTool.name}\` tool include:
                     - If you cannot answer the prompt without information that is based on the user's past interactions.
                     - If the user has asked a prompt that requires context from previous interactions.
@@ -37,7 +39,7 @@ export async function answerPrompt(
                 - **semantic**: If the memory is general knowledge relevant to anyone and can help in future interactions. You _must_ use semantic memory if possible.
                 - Translate any user pronouns into the third person when storing in memory, e.g., "I" becomes "the user", "my" becomes "the user's", etc.
                 - Don't translate pronouns when answering the question, only when storing in memory.
-            
+
             - When answering the prompt, if you have obtained relevant information from memory using the \`${searchTool.name}\` tool, use that information to construct your answer.
             - Make sure you add any relevant information from the prompt to either "semantic" or "long-term" memory using the \`${addMemoryTool.name}\` tool so that you can lookup that information in future interactions.
             - Only add memories based on the latest message, do not add memories for prior messages.
@@ -54,4 +56,80 @@ export async function answerPrompt(
   });
 
   return response.text;
+}
+
+export async function answerQuestionWithRag(
+  session: ShortTermMemory[],
+  documentChunks: DocumentChunk[],
+  documentChunkSearchTool: Tool & { name: string },
+) {
+  const response = await generateText({
+    model: llm.largeModel,
+    messages: [
+      {
+        role: "system",
+        content: `
+        You are an assistant that can answer questions based on information provided from the following documents:
+
+        Use the information from the following documents to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
+
+        Tools:
+        - Call the \`${documentChunkSearchTool.name}\` tool if you need to search the document database for relevant information.
+            - Appropriate times to use the \`${documentChunkSearchTool.name}\` tool include:
+                - If you cannot answer the prompt without additional information.
+                - If are unable to answer the prompt based on the current context, but you think the answer could exist in the document database.
+                - Based on the user's latest prompt there might not have been enough context to pull all the documents
+
+        Document Chunks:
+        - The following document chunks might be helpful for you
+        ${documentChunks.map((chunk) => `\`\`\`md\n${chunk.content}\n\`\`\``).join("\n\n")}
+        `,
+      },
+      ...session,
+    ],
+    tools: {
+      [documentChunkSearchTool.name]: documentChunkSearchTool,
+    },
+    stopWhen: [stepCountIs(10)],
+  });
+
+  if (!response.text) {
+    throw new Error("No response from AI");
+  }
+
+  return response.text;
+}
+
+export async function storeSemanticMemories(
+  query: string,
+  response: string,
+  tools: Tools,
+) {
+  const { addSemanticMemoryTool } = tools.getTools();
+
+  await generateText({
+    model: llm.mediumModel,
+    system: `
+      You are an AI assistant that creates memory entries to store in semantic memory.
+      Create memory entries based on the following criteria:
+      - The memory should be relevant to all users, not just a specific user.
+      - The memory should be general knowledge that could help in future interactions with any user.
+      - The memory should be concise and to the point.
+      - The memory should not contain any personal information about the user.
+      - The memory should be something that could be useful to remember in the future.
+
+      - Call the \`${addSemanticMemoryTool.name}\` tool to store the memory.
+      `,
+    prompt: `
+      INITIAL QUERY:
+      ${query}
+
+      RESPONSE:
+      ${response}
+      `,
+    tools: {
+      [addSemanticMemoryTool.name]: addSemanticMemoryTool,
+    },
+    stopWhen: [stepCountIs(5)],
+  });
 }

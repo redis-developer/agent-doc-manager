@@ -8,6 +8,7 @@ import getClient from "../../redis";
 import { llm, embedText } from "../../services/ai/ai";
 import { randomUlid } from "../../utils/uid";
 import * as ai from "./ai";
+import * as tools from "./tools";
 import { MarkdownTextSplitter } from "@langchain/textsplitters";
 import {
   base64ToUrl,
@@ -251,40 +252,77 @@ export async function allUrls(
   return urls;
 }
 
-export async function search(
+export async function searchChunks(
   userId: string,
-  projectId: string,
   query: string,
-): Promise<Document[]> {
-  logger.debug(
-    `Searching documents for user ${userId} and project ${projectId} with query: ${query}`,
-  );
+): Promise<DocumentChunk[]> {
+  logger.debug(`Searching documents for user ${userId} with query: ${query}`);
 
   const db = getClient();
   const embedding = await embedText(query);
 
   let results = await db.ft.search(
     "idx-document-chunks",
-    `(@userId:{${escapeDashes(userId)}} @projectId:{${escapeDashes(projectId)}})=>[KNN 100 @embedding $BLOB AS vector_score]`,
+    `(@userId:{${escapeDashes(userId)}})=>[KNN 100 @embedding $BLOB AS vector_score]`,
     {
       PARAMS: {
         BLOB: float32ToBuffer(embedding),
       },
-      RETURN: ["documentId", "vector_score"],
+      RETURN: ["documentId", "userId", "projectId", "content", "vector_score"],
       SORTBY: "vector_score",
       DIALECT: 2,
     },
   );
 
-  if (results.total > 0) {
+  if (results.total === 0) {
+    return [];
+  }
+
+  const chunks = results.documents
+    .filter((doc) => {
+      return (doc.value as any).vector_score < 0.3;
+    })
+    .map((doc) => doc.value);
+
+  return chunks as unknown as DocumentChunk[];
+}
+
+export async function getChunkSearchTool(userId: string) {
+  return tools.getSearchDocumentChunksTool(async ({ query }) => {
+    logger.info(`LLM searching for document chunks to match query`, {
+      query,
+    });
+    const chunks = await searchChunks(userId, query);
+
+    if (chunks.length === 0) {
+      return "No relevant document chunks found.";
+    }
+
+    logger.info(`LLM found ${chunks.length} relevant document chunks`);
+
+    return chunks
+      .map((chunk) => {
+        return chunk.content;
+      })
+      .join("\n\n");
+  });
+}
+
+export async function search(
+  userId: string,
+  projectId: string,
+  query: string,
+): Promise<Document[]> {
+  const db = getClient();
+  const chunks = await searchChunks(userId, query);
+  let results: Awaited<ReturnType<typeof db.ft.search>> = {
+    total: 0,
+    documents: [],
+  };
+
+  if (chunks.length > 0) {
     const documentIds = Array.from(
-      new Set(
-        results.documents
-          .filter((doc) => {
-            return (doc.value as any).vector_score < 0.3;
-          })
-          .map((doc) => (doc.value as any).documentId),
-      ),
+      new Set(chunks.map((doc) => doc.documentId)),
     );
 
     if (documentIds.length > 0) {

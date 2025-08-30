@@ -3,13 +3,32 @@ import { llm, embedText } from "../../services/ai/ai";
 import { randomUlid } from "../../utils/uid";
 import logger from "../../utils/log";
 import * as view from "./view";
-import * as memory from "../memory";
-import { ctrl as orchestrator } from "../orchestrator";
+import { ShortTermMemoryModel, WorkingMemoryModel, Tools } from "../memory";
+import type { ShortTermMemory } from "../memory";
+import * as ai from "./ai";
+import { ctrl as documents } from "../documents";
+import type { DocumentChunk } from "../documents";
+import { getChunkSearchTool } from "../documents/controller";
+
+async function getWorkingMemory(userId: string) {
+  const redis = getClient();
+
+  return WorkingMemoryModel.New(redis, userId, {
+    createUid: () => randomUlid(),
+    vectorDimensions: llm.dimensions,
+    embed: embedText,
+  });
+}
+
+async function getTools(userId: string) {
+  const workingMemory = await getWorkingMemory(userId);
+  return Tools.New(workingMemory);
+}
 
 export async function getChatSession(userId: string, chatId?: string) {
   const redis = getClient();
 
-  return memory.ShortTermMemoryModel.FromSessionId(redis, userId, chatId, {
+  return ShortTermMemoryModel.FromSessionId(redis, userId, chatId, {
     createUid: () => randomUlid(),
   });
 }
@@ -39,9 +58,10 @@ export async function newChatMessage(
     message,
   }: { botChatId: string; userId: string; chatId?: string; message: string },
 ): Promise<string> {
+  const workingMemory = await getWorkingMemory(userId);
   const chat = await getChatSession(userId, chatId);
   chatId = chat.sessionId;
-  let response: memory.ShortTermMemory = {
+  let response: ShortTermMemory = {
     id: botChatId,
     role: "assistant",
     content: "...",
@@ -64,6 +84,48 @@ export async function newChatMessage(
 
   updateView(response);
 
+  logger.info(`Searching semantic memory for answer for user \`${userId}\``, {
+    userId,
+  });
+
+  const result = await workingMemory.searchSemanticMemory(message);
+
+  if (result.length > 0) {
+    logger.info(`Found answer in semantic memory for user \`${userId}\``, {
+      userId,
+      answer: result[0].answer,
+    });
+    response.content = result[0].answer;
+  } else {
+    logger.info(
+      `No answer found in semantic memory, searching documents for user \`${userId}\``,
+      {
+        userId,
+      },
+    );
+
+    const documentChunks = await documents.searchChunks(userId, message);
+
+    logger.info(
+      `Found ${documentChunks.length} relevant document chunks for user \`${userId}\``,
+      {
+        userId,
+        count: documentChunks.length,
+      },
+    );
+
+    const memoryTools = await getTools(userId);
+    const chunkSearchTool = await documents.getChunkSearchTool(userId);
+
+    response.content = await ai.answerQuestionWithRag(
+      await chat.memories(),
+      documentChunks,
+      chunkSearchTool,
+    );
+
+    await ai.storeSemanticMemories(message, response.content, memoryTools);
+  }
+
   response = await chat.push(response);
 
   logger.debug(`Bot message added to stream for user \`${userId}\``, {
@@ -81,7 +143,7 @@ export async function newChatMessage(
 }
 
 export async function getChatsWithTopMessage(userId: string) {
-  const existingChats = await memory.ShortTermMemoryModel.AllSessions(
+  const existingChats = await ShortTermMemoryModel.AllSessions(
     getClient(),
     userId,
     {
@@ -101,7 +163,7 @@ export async function getChatsWithTopMessage(userId: string) {
  * Creates a new chat user.
  */
 export async function newChat(userId: string): Promise<string> {
-  const newChat = await memory.ShortTermMemoryModel.New(getClient(), userId, {
+  const newChat = await ShortTermMemoryModel.New(getClient(), userId, {
     createUid: () => randomUlid(),
   });
   return newChat.sessionId;
@@ -120,16 +182,7 @@ export async function initializeChat(
       userId,
     });
 
-    const db = getClient();
-    const options = {
-      createUid: () => randomUlid(),
-    };
-    const chat = await memory.ShortTermMemoryModel.FromSessionId(
-      db,
-      userId,
-      chatId,
-      options,
-    );
+    const chat = await getChatSession(userId, chatId);
     const messages = await chat.memories();
     const placeholder = messages.length === 0;
 

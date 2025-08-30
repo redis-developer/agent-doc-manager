@@ -10,6 +10,20 @@ export const searchToolInput = z.object({
     .describe("The search query, could be phrased in the form of a question"),
 });
 
+export const addSemanticMemoryToolInput = z.object({
+  question: z
+    .string()
+    .min(1)
+    .describe(`The question to use to retrieve the memory later.`),
+  answer: z.string().min(1).describe(`The answer to the question.`),
+  ttl: z
+    .number()
+    .optional()
+    .describe(
+      "If the question result should be stored, what is the recommended time-to-live in seconds for the stored value? Use -1 to store forever.",
+    ),
+});
+
 export const addMemoryToolInput = z.object({
   type: z
     .enum(["semantic", "long-term"])
@@ -78,6 +92,7 @@ export class Tools {
   getTools() {
     return {
       searchTool: this.getSearchTool(),
+      addSemanticMemoryTool: this.getAddSemanticMemoryTool(),
       addMemoryTool: this.getAddMemoryTool(),
       updateMemoryTool: this.getUpdateMemoryTool(),
     };
@@ -98,6 +113,27 @@ export class Tools {
     });
 
     return searchTool;
+  }
+
+  getAddSemanticMemoryTool(): Tool & { name: string } {
+    const addSemanticMemoryTool: Tool & { name: string } = Object.freeze({
+      description: `Add a new memory entry to working memory. Use this to remember new information about the user or general information that could apply to any user. Translate any user pronouns into the third person when storing in memory, e.g., "I" becomes "the user", "my" becomes "the user's", etc.`,
+      inputSchema: addSemanticMemoryToolInput,
+      name: "add_semantic_memory",
+      execute: async ({ question, answer, ttl }) => {
+        logger.info(`Adding "${question}" to semantic memory`, {
+          userId: this.workingMemoryModel.userId,
+          question,
+          answer,
+          ttl,
+        });
+        await this.addMemory("semantic", question, answer, ttl);
+
+        return `Added memory for question: ${question}`;
+      },
+    });
+
+    return addSemanticMemoryTool;
   }
 
   getAddMemoryTool(): Tool & { name: string } {

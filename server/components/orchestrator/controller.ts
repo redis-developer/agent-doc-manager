@@ -482,10 +482,20 @@ export async function newChatMessage(
   const botChatId = `bot-${randomUlid()}`;
 
   try {
-    return chats.newChatMessage(view.renderMessage, {
-      ...info,
-      botChatId,
-    });
+    return chats.newChatMessage(
+      (message: {
+        replaceId?: string;
+        id: string;
+        content: string;
+        role?: "user" | "assistant";
+      }) => {
+        send(view.renderMessage(message));
+      },
+      {
+        ...info,
+        botChatId,
+      },
+    );
   } catch (error) {
     console.log(error);
     logger.error(`Error handling message:`, {
