@@ -3,11 +3,11 @@ import { engine } from "express-handlebars";
 import type { HelperOptions } from "handlebars";
 import session from "./utils/session";
 import { ctrl as chat } from "./components/chat";
-import * as markdown from "./components/documents";
+import { ctrl as documents } from "./components/documents";
 import { ctrl as projects } from "./components/projects";
 
 export async function initialize() {
-  await markdown.initialize();
+  await documents.initialize();
   await projects.initialize();
 }
 
@@ -64,6 +64,25 @@ app.get("/", async (req, res) => {
     projects: allProjects,
     placeholder: !currentProjectId,
   });
+});
+
+app.get("/documents/:documentId.md", async (req, res) => {
+  const userId = req.session.id;
+  const { documentId } = req.params;
+
+  const document = await documents.read(userId, documentId);
+
+  if (!document) {
+    res.status(404).send("Document not found");
+    return;
+  }
+
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${document.id}.md"`,
+  );
+  res.setHeader("Content-Type", "text/markdown");
+  res.send(document.content);
 });
 
 export default app;

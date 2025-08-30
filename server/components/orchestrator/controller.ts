@@ -183,7 +183,7 @@ export async function crawlPages(
   );
 }
 
-export async function editDocument(
+export async function openDocument(
   send: (message: string) => void,
   userId: string,
   projectId: string,
@@ -333,10 +333,26 @@ export async function confirmChanges(
   }
 
   const workingMemory = await getWorkingMemory(userId);
-  await workingMemory.addLongTermMemory(
-    "Markdown editing preferences",
-    actions,
-  );
+  const existingMemory = (
+    await workingMemory.search("Markdown editing preferences")
+  )[0];
+
+  if (existingMemory && existingMemory.type === "long-term") {
+    await workingMemory.updateLongTermMemory(
+      existingMemory.id,
+      "Markdown editing preferences",
+      existingMemory.question.concat(`\n\n${actions}`),
+    );
+    logger.debug(`Updated working memory with new editing preferences`, {
+      userId,
+      documentId,
+    });
+  } else {
+    await workingMemory.addLongTermMemory(
+      "Markdown editing preferences",
+      actions,
+    );
+  }
 
   send(
     view.renderInstructions({

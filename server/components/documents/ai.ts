@@ -8,7 +8,11 @@ const ChunkedFileSchema = z.object({
 
 export type ChunkedFile = z.infer<typeof ChunkedFileSchema>;
 
-export async function modifyContent(content: string, prompt: string) {
+export async function modifyContent(
+  content: string,
+  prompt: string,
+  url: string,
+) {
   const ModificationSchema = z.object({
     modifiedContent: z.string(),
   });
@@ -28,6 +32,8 @@ export async function modifyContent(content: string, prompt: string) {
           }
           
           The modified content should reflect the user's instructions while preserving the original meaning as much as possible.
+
+          For reference, the document is located at the following URL: ${url}
         `,
       },
       {
@@ -141,7 +147,11 @@ const DocumentDiffSchema = z.object({
 
 export type DocumentDiff = z.infer<typeof DocumentDiffSchema>;
 
-export async function getDiffSummary(oldText: string, newText: string) {
+export async function getDiffSummary(
+  oldText: string,
+  newText: string,
+  url: string,
+) {
   const response = await generateObject({
     model: llm.largeModel,
     messages: [
@@ -154,6 +164,8 @@ export async function getDiffSummary(oldText: string, newText: string) {
 
         Don't worry about the specific content, just focus on the types of changes made and similar actions that can be taken to edit other documents accordingly.
 
+        If you notice something that is instructing you to generate a specific change, generalize it to a broader action that can be applied to other documents.
+
         Examples of actions include:
         - "Add fenced code blocks for all code snippets and supply the language for the code blocks."
         - "Remove empty sections"
@@ -162,6 +174,8 @@ export async function getDiffSummary(oldText: string, newText: string) {
         - "Make sure fenced code blocks have a language specified."
         - "Adjust fenced code blocks to not have line numbers."
         - "Remove outdated sections that are no longer relevant."
+
+        For reference, the document is located at the following URL: ${url}
       `,
       },
       {

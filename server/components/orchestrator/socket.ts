@@ -75,13 +75,13 @@ function onConnection(ws: WebSocket, req: Request) {
 
           await ctrl.crawlPages(send, userId, projectId, title, prompt);
           break;
-        case "edit_document":
-          await ctrl.editDocument(
+        case "open_document":
+          await ctrl.openDocument(
             send,
             userId,
             currentProjectId!,
             form.documentId,
-            form.editing,
+            form.editing === "true",
           );
           break;
         case "close_document":
@@ -90,7 +90,7 @@ function onConnection(ws: WebSocket, req: Request) {
             userId,
             currentProjectId!,
             form.documentId,
-            form.editing,
+            form.editing === "true",
           );
           break;
         case "diff_document":

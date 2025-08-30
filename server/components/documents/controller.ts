@@ -424,7 +424,11 @@ export async function modifyContent(document: Document, prompt: string) {
   logger.debug(
     `Modifying content for document ${document.id} with prompt: ${prompt}`,
   );
-  const newContent = await ai.modifyContent(document.content, prompt);
+  const newContent = await ai.modifyContent(
+    document.content,
+    prompt,
+    document.url,
+  );
   const db = getClient();
 
   document.content = newContent;
@@ -490,7 +494,11 @@ export async function diff(
     throw new Error(`Document not found: ${documentId}`);
   }
 
-  const diffSummary = await ai.getDiffSummary(document.content, newContent);
+  const diffSummary = await ai.getDiffSummary(
+    document.content,
+    newContent,
+    document.url,
+  );
 
   return diffSummary;
 }
