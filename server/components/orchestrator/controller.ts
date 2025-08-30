@@ -8,8 +8,6 @@ import { ctrl as crawler } from "../crawl";
 import { ctrl as documents } from "../documents";
 import { ctrl as projects } from "../projects";
 import { ctrl as chats } from "../chats";
-import { ctrl as qa } from "../qa";
-import { ctrl as responder } from "../responder";
 import * as view from "./view";
 import type { Project } from "../projects";
 import type { Document } from "../documents";
@@ -182,6 +180,8 @@ export async function crawlPages(
 ) {
   await projects.update(userId, projectId, title, prompt);
   const { url, instructions } = await parser.extractUrlAndInstructions(prompt);
+  const workingMemory = await getWorkingMemory(userId);
+
   let docs: Document[] = [];
   if (url && instructions) {
     logger.debug(`Crawl pages tool called for URL: ${url}`, {
@@ -207,6 +207,21 @@ export async function crawlPages(
       documents: docs,
     }),
   );
+
+  const editMemories = await workingMemory.search(
+    "Markdown editing preferences",
+  );
+
+  if (editMemories.length > 0 && editMemories[0].type === "long-term") {
+    send(
+      view.renderPopupForm({
+        show: true,
+        label: "💡 Insight: Apply your markdown editing preferences?",
+        cmd: "documents/confirm",
+        content: editMemories[0].answer,
+      }),
+    );
+  }
 }
 
 export async function openDocument(
@@ -305,6 +320,8 @@ export async function diffDocument(
     view.renderPopupForm({
       show: true,
       id: documentId,
+      label:
+        "🛠️ Changes synthesized! Apply to the rest of this document or all documents?",
       cmd: "documents/confirm",
       content: actions.join("\n\n"),
     }),
@@ -338,16 +355,18 @@ export async function confirmChanges(
   const doc = await documents.read(userId, documentId);
 
   if (action === "cancel") {
-    logger.debug(`User cancelled changes for document \`${documentId}\``, {
+    logger.debug(`User cancelled changes`, {
       userId,
-      documentId,
     });
-    send(
-      view.renderDocument({
-        ...doc!,
-        selected: false,
-      }),
-    );
+
+    if (doc) {
+      send(
+        view.renderDocument({
+          ...doc!,
+          selected: false,
+        }),
+      );
+    }
 
     send(
       view.renderInstructions({
@@ -364,10 +383,12 @@ export async function confirmChanges(
   )[0];
 
   if (existingMemory && existingMemory.type === "long-term") {
+    let mergedMemory = await parser.mergeText([existingMemory.answer, actions]);
+
     await workingMemory.updateLongTermMemory(
       existingMemory.id,
       "Markdown editing preferences",
-      existingMemory.question.concat(`\n\n${actions}`),
+      mergedMemory,
     );
     logger.debug(`Updated working memory with new editing preferences`, {
       userId,
@@ -423,7 +444,7 @@ export async function confirmChanges(
       projectId,
       actions,
     );
-  } else if (action === "apply") {
+  } else if (action === "apply" && doc) {
     send(
       view.renderDocument({
         ...doc!,
@@ -432,6 +453,11 @@ export async function confirmChanges(
       }),
     );
     await documents.applyToOne(userId, documentId, actions);
+  } else {
+    logger.warn(`Document not found: ${documentId}`, {
+      userId,
+      documentId,
+    });
   }
 
   send(
@@ -624,6 +650,62 @@ export async function initializeChat(
 /**
  * Clears the entire store.
  */
+export async function clearProjects(
+  send: (message: string) => void,
+  userId: string,
+) {
+  try {
+    logger.debug("Clearing Redis", {
+      userId,
+    });
+
+    const db = getClient();
+    const allKeys = await db.keys("projects:*");
+    const chunks = await db.keys("document-chunks:*");
+    const docs = await db.keys("documents:*");
+
+    if (Array.isArray(docs) && docs.length > 0) {
+      allKeys.push(...docs);
+    }
+
+    if (Array.isArray(chunks) && chunks.length > 0) {
+      allKeys.push(...chunks);
+    }
+
+    if (Array.isArray(allKeys) && allKeys.length > 0) {
+      await db.del(allKeys);
+    }
+
+    const indexes = await db.ft._list();
+
+    await Promise.all(
+      indexes
+        .filter((index) => {
+          return (
+            index.includes("projects") ||
+            index.includes("documents") ||
+            index.includes("document-chunks")
+          );
+        })
+        .map(async (index) => {
+          await db.ft.dropIndex(index);
+        }),
+    );
+
+    await projects.initialize();
+    await documents.initialize();
+  } catch (error) {
+    logger.error("Failed to clear memory:", {
+      error,
+      userId,
+    });
+    throw error;
+  }
+}
+
+/**
+ * Clears the entire store.
+ */
 export async function clearMemory(
   send: (message: string) => void,
   userId: string,
@@ -683,8 +765,6 @@ export async function clearMemory(
 
     await projects.initialize();
     await documents.initialize();
-
-    send(view.clearMessages());
   } catch (error) {
     logger.error("Failed to clear memory:", {
       error,

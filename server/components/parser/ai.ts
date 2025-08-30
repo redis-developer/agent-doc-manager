@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { llm } from "../../services/ai/ai";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { ShortTermMemory } from "../memory";
 
 const CommandsEnumSchema = z.enum([
@@ -33,20 +33,20 @@ export async function getUrlAndInstructions(
 
           - The URL should be a valid URL starting with http:// or https://.
           - The instructions should be a concise summary of what to do with the URL.
-          - If no URL is found, return an empty string for the URL and instructions.  
+          - If no URL is found, return an empty string for the URL and instructions.
           Examples:
           1. Prompt: "Find all tutorial pages from https://example.com/tutorials"
              Response: {
                "url": "https://example.com/tutorials",
                "instructions": "Find all tutorial pages."
              }
-               
+
           2. Prompt: "Extract the main content from http://blog.example.com"
               Response: {
                 "url": "http://blog.example.com",
                 "instructions": "Extract the main content."
               }
-                
+
           3. Prompt: "Hello, how are you today?"
               Response: {
                 "url": "",
@@ -88,7 +88,7 @@ export async function getCommand(messages: ShortTermMemory[]) {
         role: "system",
         content: `
           You are an AI assistant that converts a user prompt intent into an actionable command.
-          
+
           - You do not take action on the command or instructions.
           - All you need to do is take the input messages, parse the latest message, and return the JSON according to the description below.
 
@@ -142,4 +142,35 @@ export async function getCommand(messages: ShortTermMemory[]) {
   });
 
   return response.object;
+}
+
+export async function mergeText(text: string[]) {
+  const response = await generateText({
+    model: llm.mediumModel,
+    messages: [
+      {
+        role: "system",
+        content: `
+          You are an AI assistant that merges text.
+
+          - The text is provided in chronological order, with the newest text last.
+          - Ensure the merged text is coherent and maintains the original meaning.
+          - If there are any contradictions between the texts, prioritize the newest text.
+          - Preserve important details from both texts.
+          - Maintain a consistent tone and style throughout the merged text.
+          - Your output should only be the merged text, without any additional commentary or explanation.
+        `,
+      },
+      {
+        role: "user",
+        content: `
+          Please provide the merged text.
+          Texts to merge:
+          ${text.map((t, i) => `Text ${i + 1}:\n"""\n${t}\n"""`).join("\n\n")}
+        `,
+      },
+    ],
+  });
+
+  return response.text;
 }

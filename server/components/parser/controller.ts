@@ -1,13 +1,12 @@
 import { ShortTermMemory } from "../memory";
-import { getCommand } from "./ai";
 import logger from "../../utils/log";
-import { getUrlAndInstructions } from "./ai";
+import * as ai from "./ai";
 
 export async function extractUrlAndInstructions(prompt: string) {
   logger.debug("Extracting URL and instructions from prompt", {
     prompt,
   });
-  const result = await getUrlAndInstructions(prompt);
+  const result = await ai.getUrlAndInstructions(prompt);
 
   logger.debug(`Extracted URL: ${result.url}`, {
     result,
@@ -20,11 +19,15 @@ export async function extractCommand(messages: ShortTermMemory[]) {
     message: messages[messages.length - 1].content,
   });
 
-  const command = await getCommand(messages);
+  const command = await ai.getCommand(messages);
 
   logger.debug(`Extracted command: ${command.command}`, {
     command,
   });
 
   return command;
+}
+
+export async function mergeText(texts: string[]) {
+  return ai.mergeText(texts);
 }

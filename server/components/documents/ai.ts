@@ -26,14 +26,14 @@ export async function modifyContent(
           You are an AI assistant that modifies markdown based on user instructions.
           You will respond with a JSON object containing the modified content.
           Given the original content and user instructions, you must always respond with a JSON object that matches the following schema:
-          
+
           {
             "modifiedContent": "<the modified content>"
           }
-          
+
           The modified content should reflect the user's instructions while preserving the original meaning as much as possible.
 
-          For reference, the document is located at the following URL: ${url}
+          If you are instructed to generate something using the URL, here is the URL: ${url}
         `,
       },
       {
@@ -43,12 +43,12 @@ export async function modifyContent(
           """
           ${content}
           """
-          
+
           Instructions:
           """
           ${prompt}
           """
-          
+
           Please provide the modified content.
         `,
       },
@@ -78,7 +78,7 @@ export async function matchPromptToUrl(prompt: string, urls: string[]) {
         content: `
           You are an AI assistant that matches user prompts to relevant URLs.
           You will respond with a JSON object containing an array of URLs that are relevant to the user's prompt.
-          
+
           Only include the URL that is directly relevant to the user's prompt. If none are relevant, respond with an empty string.
         `,
       },
@@ -89,12 +89,12 @@ export async function matchPromptToUrl(prompt: string, urls: string[]) {
           """
           ${prompt}
           """
-          
+
           Available URLs:
           """
           ${urls.join("\n")}
           """
-          
+
           Please provide the matched URL.
         `,
       },
@@ -126,7 +126,7 @@ export async function chunkFile(content: string, maxChunkSize: number = 1000) {
           """
           ${content}
           """
-          
+
           Please provide the content broken down into smaller chunks.
         `,
       },
@@ -164,7 +164,7 @@ export async function getDiffSummary(
 
         Don't worry about the specific content, just focus on the types of changes made and similar actions that can be taken to edit other documents accordingly.
 
-        If you notice something that is instructing you to generate a specific change, generalize it to a broader action that can be applied to other documents.
+        If in the changes you notice text similar to "generate X from Y" this specifying an action.
 
         Examples of actions include:
         - "Add fenced code blocks for all code snippets and supply the language for the code blocks."

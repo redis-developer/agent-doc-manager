@@ -2,7 +2,7 @@ import { generateText, stepCountIs } from "ai";
 import type { Tool } from "ai";
 import { llm } from "../../services/ai/ai";
 import type { ShortTermMemory, Tools } from "../../components/memory";
-import type { Command } from "../orchestrator";
+import type { Command } from "../parser";
 import type { DocumentChunk } from "../documents";
 import { addSemanticMemoryToolInput } from "../memory/tools";
 

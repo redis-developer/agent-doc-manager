@@ -562,8 +562,26 @@ export async function applyToAll(
 ) {
   const documents = await all(userId, projectId);
 
-  for (const document of documents) {
-    const updatedDocument = await modifyContent(document, actions);
-    progress(updatedDocument);
+  const chunks = 15;
+
+  logger.info(
+    `Applying actions to ${documents.length} documents for user ${userId} and project ${projectId}`,
+  );
+
+  for (let i = 0; i < documents.length; i += chunks) {
+    const chunk = documents.slice(i, i + chunks);
+    await Promise.all(
+      chunk.map(async (document) => {
+        const updatedDocument = await modifyContent(document, actions);
+        progress(updatedDocument);
+      }),
+    );
   }
+
+  logger.info(`Completed applying actions to all documents`);
+
+  // for (const document of documents) {
+  //   const updatedDocument = await modifyContent(document, actions);
+  //   progress(updatedDocument);
+  // }
 }

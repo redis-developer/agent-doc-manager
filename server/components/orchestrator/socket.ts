@@ -169,6 +169,14 @@ function onConnection(ws: WebSocket, req: Request, type: "chat" | "projects") {
             }
           });
           break;
+        case "projects/clear":
+          await orchestrator.clearProjects(send, userId);
+
+          currentProjectId = undefined;
+          // @ts-ignore
+          req.session.currentProjectId = undefined;
+          req.session.save();
+          break;
         case "data/clear":
           await orchestrator.clearMemory(send, userId);
           logWst.removeUser(userId);

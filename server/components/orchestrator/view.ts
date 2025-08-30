@@ -151,12 +151,10 @@ export function renderNewProjectForm(project?: Project) {
 /**
  * Renders the document list section.
  */
-export function renderDocumentsList({
-  documents,
-}: {
+export function renderDocumentsList(data: {
   documents: (Document & { editing?: boolean; selected?: boolean })[];
 }) {
-  return documentsListTemplate({ documents });
+  return documentsListTemplate(data);
 }
 
 /**
@@ -180,7 +178,8 @@ export function renderInstructions(data: {
 
 export function renderPopupForm(data: {
   show: boolean;
-  id: string;
+  id?: string;
+  label: string;
   cmd: string;
   content: string;
 }) {
