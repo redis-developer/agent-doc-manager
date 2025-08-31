@@ -62,7 +62,8 @@ export async function initializeProjects(
 
     return currentProjectId;
   } catch (error) {
-    logger.error(`Failed to initialize chat for user \`${userId}\`:`, {
+    console.log(error);
+    logger.error(`Failed to initialize project for user \`${userId}\`:`, {
       error,
       userId,
     });
@@ -164,20 +165,20 @@ export async function startProject(
   await crawlPages(send, userId, projectId, title, prompt);
 
   const workingMemory = await getWorkingMemory(userId);
-    const editMemories = await workingMemory.search(
-      "Markdown editing preferences",
-    );
+  const editMemories = await workingMemory.search(
+    "Markdown editing preferences",
+  );
 
-    if (editMemories.length > 0 && editMemories[0].type === "long-term") {
-      send(
-        view.renderPopupForm({
-          show: true,
-          label: "💡 Insight: Apply your markdown editing preferences?",
-          cmd: "documents/confirm",
-          content: editMemories[0].answer,
-        }),
-      );
-    }
+  if (editMemories.length > 0 && editMemories[0].type === "long-term") {
+    send(
+      view.renderPopupForm({
+        show: true,
+        label: "💡 Insight: Apply your markdown editing preferences?",
+        cmd: "documents/confirm",
+        content: editMemories[0].answer,
+      }),
+    );
+  }
   send(
     view.renderInstructions({
       instructions: "",
@@ -632,13 +633,18 @@ export async function initializeChat(
     if (!chatId) {
       const allChats = await chats.getChatsWithTopMessage(userId);
 
-      chatId = allChats[0].chatId;
+      if (allChats.length === 0) {
+        chatId = await chats.newChat(userId);
+      } else {
+        chatId = allChats[0].chatId;
+      }
     }
 
     await switchChat(send, userId, chatId);
 
     return chatId;
   } catch (error) {
+    console.log(error);
     logger.error(`Failed to initialize chat for user \`${userId}\`:`, {
       error,
       userId,
