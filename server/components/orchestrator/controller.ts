@@ -163,6 +163,21 @@ export async function startProject(
 
   await crawlPages(send, userId, projectId, title, prompt);
 
+  const workingMemory = await getWorkingMemory(userId);
+    const editMemories = await workingMemory.search(
+      "Markdown editing preferences",
+    );
+
+    if (editMemories.length > 0 && editMemories[0].type === "long-term") {
+      send(
+        view.renderPopupForm({
+          show: true,
+          label: "💡 Insight: Apply your markdown editing preferences?",
+          cmd: "documents/confirm",
+          content: editMemories[0].answer,
+        }),
+      );
+    }
   send(
     view.renderInstructions({
       instructions: "",
@@ -180,7 +195,6 @@ export async function crawlPages(
 ) {
   await projects.update(userId, projectId, title, prompt);
   const { url, instructions } = await parser.extractUrlAndInstructions(prompt);
-  const workingMemory = await getWorkingMemory(userId);
 
   let docs: Document[] = [];
   if (url && instructions) {
@@ -207,21 +221,6 @@ export async function crawlPages(
       documents: docs,
     }),
   );
-
-  const editMemories = await workingMemory.search(
-    "Markdown editing preferences",
-  );
-
-  if (editMemories.length > 0 && editMemories[0].type === "long-term") {
-    send(
-      view.renderPopupForm({
-        show: true,
-        label: "💡 Insight: Apply your markdown editing preferences?",
-        cmd: "documents/confirm",
-        content: editMemories[0].answer,
-      }),
-    );
-  }
 }
 
 export async function openDocument(
