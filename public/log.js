@@ -9,6 +9,12 @@ function toggleLogs() {
   }
 }
 
+/**
+ *
+ * @param {string} level
+ * @param {string} message
+ * @param {any} meta
+ */
 function addLogEntry(level, message, meta) {
   const el = document.getElementById("logs");
   const colorClassMap = {
@@ -24,7 +30,7 @@ function addLogEntry(level, message, meta) {
   const levelSpan = document.createElement("span");
   levelSpan.classList.add("uppercase", "font-semibold");
   levelSpan.classList.add(colorClassMap[level] ?? "text-gray-600");
-  levelSpan.textContent = `[${level}] `;
+  levelSpan.textContent = `[${level.charAt(0)}] `;
   const messageSpan = document.createElement("span");
   messageSpan.textContent = message;
   pre.appendChild(levelSpan);

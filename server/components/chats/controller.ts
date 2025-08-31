@@ -84,33 +84,28 @@ export async function newChatMessage(
 
   updateView(response);
 
-  logger.info(`Searching semantic memory for answer for user \`${userId}\``, {
+  logger.info(`Searching for existing response in semantic memory.`, {
     userId,
   });
 
   const result = await workingMemory.searchSemanticMemory(message);
 
   if (result.length > 0) {
-    logger.info(`Found answer in semantic memory for user \`${userId}\``, {
+    logger.info(`Found response in semantic memory`, {
       userId,
-      answer: result[0].answer,
     });
     response.content = result[0].answer;
   } else {
-    logger.info(
-      `No answer found in semantic memory, searching documents for user \`${userId}\``,
-      {
-        userId,
-      },
-    );
+    logger.info(`No response found in semantic memory, searching documents`, {
+      userId,
+    });
 
     const documentChunks = await documents.searchChunks(userId, message);
 
     logger.info(
-      `Found ${documentChunks.length} relevant document chunks for user \`${userId}\``,
+      `Found ${documentChunks.length} relevant document chunks for RAG.`,
       {
         userId,
-        count: documentChunks.length,
       },
     );
 

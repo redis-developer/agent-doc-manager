@@ -169,6 +169,12 @@ export async function startProject(
   );
 
   if (editMemories.length > 0 && editMemories[0].type === "long-term") {
+    logger.info(
+      `Insight: Identified long-term memory, "Markdown editing preferences"`,
+      {
+        userId,
+      },
+    );
     send(
       view.renderPopupForm({
         show: true,
@@ -198,12 +204,10 @@ export async function crawlPages(
 
   let docs: Document[] = [];
   if (url && instructions) {
-    logger.debug(`Crawl pages tool called for URL: ${url}`, {
+    logger.info(`Extracted instructions=[${instructions}] and url=[${url}]`, {
       userId,
-      projectId,
-      url,
-      instructions,
     });
+
     docs = await crawler.crawlUrl(userId, projectId, url, instructions);
     logger.debug(`Crawl tool result: ${docs.length} URLs found`, {
       userId,
@@ -382,6 +386,12 @@ export async function confirmChanges(
   )[0];
 
   if (existingMemory && existingMemory.type === "long-term") {
+    logger.info(
+      `Merging existing long-term memory, "Markdown editing preferences" with approved actions.`,
+      {
+        userId,
+      },
+    );
     let mergedMemory = await parser.mergeText([existingMemory.answer, actions]);
 
     await workingMemory.updateLongTermMemory(
@@ -394,6 +404,13 @@ export async function confirmChanges(
       documentId,
     });
   } else {
+    logger.info(
+      `Adding new long-term memory, "Markdown editing preferences" with approved actions.`,
+      {
+        userId,
+      },
+    );
+
     await workingMemory.addLongTermMemory(
       "Markdown editing preferences",
       actions,
@@ -425,11 +442,14 @@ export async function confirmChanges(
       }),
     );
 
+    logger.info(`Applying actions to ${allDocs.length} documents.`, {
+      userId,
+    });
+
     await documents.applyToAll(
       (document) => {
         logger.debug(`Applied changes to document \`${document.id}\``, {
           userId,
-          documentId: document.id,
         });
 
         send(
@@ -451,6 +471,10 @@ export async function confirmChanges(
         editing: true,
       }),
     );
+
+    logger.info(`Applying actions to one document`, {
+      userId,
+    });
     await documents.applyToOne(userId, documentId, actions);
   } else {
     logger.warn(`Document not found: ${documentId}`, {

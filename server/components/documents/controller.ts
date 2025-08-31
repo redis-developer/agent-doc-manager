@@ -174,6 +174,9 @@ export async function createMany(
 
   logger.debug(
     `Setting ${allDocuments.length} documents for user ${userId} and project ${projectId} in Redis`,
+    {
+      userId,
+    },
   );
 
   await db.json.mSet(
@@ -189,8 +192,11 @@ export async function createMany(
     }),
   );
 
-  logger.debug(
-    `Setting ${allChunks.length} document chunks for user ${userId} and project ${projectId} in Redis`,
+  logger.info(
+    `Found ${allDocuments.length} documents, transformed into ${allChunks.length} chunks for vector search.`,
+    {
+      userId,
+    },
   );
 
   await db.json.mSet(
@@ -290,7 +296,7 @@ export async function searchChunks(
 export async function getChunkSearchTool(userId: string) {
   return tools.getSearchDocumentChunksTool(async ({ query }) => {
     logger.info(`LLM searching for document chunks to match query`, {
-      query,
+      userId,
     });
     const chunks = await searchChunks(userId, query);
 
@@ -298,7 +304,9 @@ export async function getChunkSearchTool(userId: string) {
       return "No relevant document chunks found.";
     }
 
-    logger.info(`LLM found ${chunks.length} relevant document chunks`);
+    logger.info(`LLM found ${chunks.length} relevant document chunks.`, {
+      userId,
+    });
 
     return chunks
       .map((chunk) => {
@@ -538,6 +546,13 @@ export async function diff(
     document.url,
   );
 
+  logger.info(
+    `Found ${diffSummary?.actions?.length ?? 0} desired actions based on document edits.`,
+    {
+      userId,
+    },
+  );
+
   return diffSummary;
 }
 
@@ -578,10 +593,7 @@ export async function applyToAll(
     );
   }
 
-  logger.info(`Completed applying actions to all documents`);
-
-  // for (const document of documents) {
-  //   const updatedDocument = await modifyContent(document, actions);
-  //   progress(updatedDocument);
-  // }
+  logger.debug(`Completed applying actions to all documents`, {
+    userId,
+  });
 }

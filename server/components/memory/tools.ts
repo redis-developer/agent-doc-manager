@@ -123,9 +123,6 @@ export class Tools {
       execute: async ({ question, answer, ttl }) => {
         logger.info(`Adding "${question}" to semantic memory`, {
           userId: this.workingMemoryModel.userId,
-          question,
-          answer,
-          ttl,
         });
         await this.addMemory("semantic", question, answer, ttl);
 
@@ -144,7 +141,6 @@ export class Tools {
       execute: ({ type, question, answer, ttl }) => {
         logger.info(`Adding "${question}" to ${type} memory`, {
           userId: this.workingMemoryModel.userId,
-          question,
           answer,
           ttl,
         });
@@ -163,7 +159,6 @@ export class Tools {
       execute: ({ type, id, question, answer, ttl }) => {
         logger.info(`Updating question "${id}" in ${type} memory`, {
           userId: this.workingMemoryModel.userId,
-          question,
           answer,
           ttl,
         });
