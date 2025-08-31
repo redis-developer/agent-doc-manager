@@ -2,11 +2,9 @@ import { WebSocketServer } from "ws";
 import type { WebSocket } from "ws";
 import type { Request } from "express";
 import logger, { logWst } from "../../utils/log";
-import { randomUlid } from "../../utils/uid";
 import expressSession from "express-session";
 import session from "../../utils/session";
 import * as orchestrator from "./controller";
-import { ctrl as chatCtrl } from "../chats";
 
 export const wss = new WebSocketServer({ noServer: true });
 
@@ -81,6 +79,14 @@ export type ClearDataForm = {
   cmd: "data/clear";
 };
 
+export type OpenLogForm = {
+  cmd: "logs/open";
+};
+
+export type CloseLogForm = {
+  cmd: "logs/close";
+};
+
 export type MessageForm =
   | NewProjectForm
   | SwitchProjectForm
@@ -110,8 +116,7 @@ export async function onMessage(
   form: MessageForm,
 ) {
   const userId = session.id;
-  const currentProjectId = session.currentProjectId;
-  const currentChatId = session.currentChatId;
+  const { currentProjectId, currentChatId } = session;
   let newProjectId: string | undefined;
   let newChatId: string | undefined;
 

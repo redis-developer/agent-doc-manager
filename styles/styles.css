@@ -4,6 +4,10 @@ progress {
   border: revert;
 }
 
+button {
+  cursor: pointer;
+}
+
 .htmx-request {
   opacity: 0.5;
 }
