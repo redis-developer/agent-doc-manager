@@ -123,6 +123,15 @@ export async function switchProject(
     return;
   }
 
+  const allProjects = await projects.all(userId);
+
+  send(
+    view.renderProjects({
+      projects: allProjects,
+      currentProjectId: project.projectId,
+    }),
+  );
+
   const docs = await documents.all(userId, projectId);
 
   if (docs.length === 0) {
@@ -160,8 +169,17 @@ export async function startProject(
   );
 
   send(view.renderNewProjectForm());
+  await projects.update(userId, projectId, title, prompt);
 
-  await crawlPages(send, userId, projectId, title, prompt);
+  const allProjects = await projects.all(userId);
+  send(
+    view.renderProjects({
+      projects: allProjects,
+      currentProjectId: projectId,
+    }),
+  );
+
+  await crawlPages(send, userId, projectId, prompt);
 
   const workingMemory = await getWorkingMemory(userId);
   const editMemories = await workingMemory.search(
@@ -196,10 +214,8 @@ export async function crawlPages(
   send: (message: string) => void,
   userId: string,
   projectId: string,
-  title: string,
   prompt: string,
 ) {
-  await projects.update(userId, projectId, title, prompt);
   const { url, instructions } = await parser.extractUrlAndInstructions(prompt);
 
   let docs: Document[] = [];
@@ -209,6 +225,9 @@ export async function crawlPages(
     });
 
     docs = await crawler.crawlUrl(userId, projectId, url, instructions);
+
+    docs.sort((a, b) => a.url.localeCompare(b.url));
+
     logger.debug(`Crawl tool result: ${docs.length} URLs found`, {
       userId,
       projectId,

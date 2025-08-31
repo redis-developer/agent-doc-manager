@@ -244,6 +244,7 @@ export async function allUrls(
         from: 0,
         size: 1000,
       },
+      SORTBY: "url",
     },
   );
 
@@ -337,6 +338,9 @@ export async function search(
       results = await db.ft.search(
         "idx-documents",
         `@userId:{${escapeDashes(userId)}} @id:{${escapeDashes(documentIds.join("|"))}}`,
+        {
+          SORTBY: "url",
+        },
       );
     } else {
       results = {
@@ -360,6 +364,9 @@ export async function search(
       results = await db.ft.search(
         "idx-documents",
         `@userId:{${escapeDashes(userId)}} @url:{${escapeDashes(urlToBase64(matchedUrl))}}`,
+        {
+          SORTBY: "url",
+        },
       );
     }
   }
@@ -393,6 +400,7 @@ export async function all(
       from: 0,
       size: 50,
     },
+    SORTBY: "url",
   });
 
   if (results.total === 0) {
@@ -467,9 +475,9 @@ export async function read(
 }
 
 export async function modifyContent(document: Document, prompt: string) {
-  logger.debug(
-    `Modifying content for document ${document.id} with prompt: ${prompt}`,
-  );
+  logger.debug(`Modifying content for document ${document.id}`, {
+    userId: document.userId,
+  });
   const newContent = await ai.modifyContent(
     document.content,
     prompt,
@@ -481,12 +489,17 @@ export async function modifyContent(document: Document, prompt: string) {
 
   logger.debug(
     `Splitting document with new content into chunks for ${document.id}`,
+    {
+      userId: document.userId,
+    },
   );
 
   const chunks = await split(document);
   let existingChunks: SearchReply;
 
-  logger.debug(`Removing existing chunks for document ${document.id}`);
+  logger.debug(`Removing existing chunks for document ${document.id}`, {
+    userId: document.userId,
+  });
   do {
     existingChunks = await db.ft.search(
       "idx-document-chunks",
@@ -505,7 +518,9 @@ export async function modifyContent(document: Document, prompt: string) {
     }
   } while (existingChunks.total > 0);
 
-  logger.debug(`Updating document ${document.id} content in Redis`);
+  logger.debug(`Updating document ${document.id} content in Redis`, {
+    userId: document.userId,
+  });
 
   await db.json.set(`documents:${document.id}`, "$", {
     ...document,
@@ -514,6 +529,9 @@ export async function modifyContent(document: Document, prompt: string) {
 
   logger.debug(
     `Adding ${chunks.length} new chunks for document ${document.id} in Redis`,
+    {
+      userId: document.userId,
+    },
   );
 
   await db.json.mSet(
@@ -578,10 +596,6 @@ export async function applyToAll(
   const documents = await all(userId, projectId);
 
   const chunks = 15;
-
-  logger.info(
-    `Applying actions to ${documents.length} documents for user ${userId} and project ${projectId}`,
-  );
 
   for (let i = 0; i < documents.length; i += chunks) {
     const chunk = documents.slice(i, i + chunks);
