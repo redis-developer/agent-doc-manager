@@ -587,8 +587,8 @@ We'll use this function in a background thread. We'll start the thread in manual
 `Queue`
 `import time
 from queue import Queue
-DEFAULT_MEMORY_WORKER_INTERVAL = 5 _ 60 # 5 minutes
-DEFAULT_MEMORY_WORKER_BACKOFF_INTERVAL = 10 _ 60 # 10 minutes
+DEFAULT*MEMORY_WORKER_INTERVAL = 5 * 60 # 5 minutes
+DEFAULT*MEMORY_WORKER_BACKOFF_INTERVAL = 10 * 60 # 10 minutes
 
 def memory_worker(
 memory_queue: Queue,

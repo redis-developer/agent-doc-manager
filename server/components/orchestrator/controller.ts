@@ -339,7 +339,7 @@ export async function confirmChanges(
   send(
     view.renderPopupForm({
       show: false,
-      id: "",
+      label: "",
       cmd: "",
       content: "",
     }),
