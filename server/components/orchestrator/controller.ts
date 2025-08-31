@@ -62,7 +62,6 @@ export async function initializeProjects(
 
     return currentProjectId;
   } catch (error) {
-    console.log(error);
     logger.error(`Failed to initialize project for user \`${userId}\`:`, {
       error,
       userId,
@@ -523,7 +522,6 @@ export async function newChatMessage(
       },
     );
   } catch (error) {
-    console.log(error);
     logger.error(`Error handling message:`, {
       error,
       userId: info.userId,
@@ -644,7 +642,6 @@ export async function initializeChat(
 
     return chatId;
   } catch (error) {
-    console.log(error);
     logger.error(`Failed to initialize chat for user \`${userId}\`:`, {
       error,
       userId,

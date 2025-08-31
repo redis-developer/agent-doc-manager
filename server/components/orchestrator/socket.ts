@@ -218,7 +218,7 @@ export async function onMessage(
       break;
     case "users/new":
       logWst.removeUser(userId);
-      session.destroy(function (err) {
+      session.destroy((err) => {
         if (err) {
           logger.error("Failed to regenerate session", { error: err });
           return;
@@ -235,7 +235,7 @@ export async function onMessage(
     case "data/clear":
       await orchestrator.clearMemory(send, userId);
       logWst.removeUser(userId);
-      session.destroy(function (err) {
+      session.destroy((err) => {
         if (err) {
           logger.error("Failed to regenerate session", { error: err });
           return;
