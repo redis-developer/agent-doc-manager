@@ -4,7 +4,7 @@ services:
     container_name: redis
     image: "redis:alpine"
     ports:
-      - 6379:6379
+      - 6300:6379
     deploy:
       replicas: 1
       restart_policy:
