@@ -40,7 +40,6 @@ function addLogEntry(level, message, meta) {
 
 ws.onopen = () => {
   document.getElementById("viewLogs").addEventListener("click", toggleLogs);
-  document.getElementById("closeLogs").addEventListener("click", toggleLogs);
 };
 
 ws.onmessage = (ev) => {
