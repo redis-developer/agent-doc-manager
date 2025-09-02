@@ -15,11 +15,12 @@ const server = app.listen(port, async () => {
   await initialize();
 });
 
-function onUpgrade(
+async function onUpgrade(
   req: IncomingMessage,
   socket: Duplex,
   head: Buffer<ArrayBufferLike>,
 ) {
+  await initialize();
   let url = req.url!;
 
   if (url.includes("wss://")) {

@@ -5,6 +5,8 @@ import logger, { logWst } from "../../utils/log";
 import expressSession from "express-session";
 import session from "../../utils/session";
 import * as orchestrator from "./controller";
+import { ctrl as projectsCtrl } from "../projects";
+import { ctrl as documentsCtrl } from "../documents";
 
 export const wss = new WebSocketServer({ noServer: true });
 
@@ -109,6 +111,11 @@ export type AppSession = Pick<
   currentProjectId: string;
   currentChatId: string;
 };
+
+async function initialize() {
+  await projectsCtrl.initialize();
+  await documentsCtrl.initialize();
+}
 
 export async function onMessage(
   send: (message: string) => void,
@@ -313,8 +320,14 @@ export async function initializeSocket(
 /**
  * Handles WebSocket connections and messages.
  */
-function onConnection(ws: WebSocket, req: Request, type: "chat" | "projects") {
+async function onConnection(
+  ws: WebSocket,
+  req: Request,
+  type: "chat" | "projects",
+) {
+  await initialize();
   session(req, {} as any, async () => {
+    await initialize();
     const userId = req.session.id;
 
     if (!userId) {
@@ -340,7 +353,7 @@ function onConnection(ws: WebSocket, req: Request, type: "chat" | "projects") {
 
     void initializeSocket(send, type, req.session as unknown as AppSession);
     ws.on("error", logger.error);
-    ws.on("message", (data) => {
+    ws.on("message", async (data) => {
       void onMessage(
         send,
         req.session as unknown as AppSession,

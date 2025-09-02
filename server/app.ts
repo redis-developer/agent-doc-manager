@@ -34,6 +34,10 @@ app.engine(
 );
 app.set("view engine", "hbs");
 app.set("views", "./views");
+app.use(async (req, res, next) => {
+  await initialize();
+  next();
+});
 app.use(session);
 
 app.get("/chat", async (req, res) => {
