@@ -35,6 +35,7 @@ COPY --from=prerelease /usr/src/app/build/server/index.js .
 COPY --from=prerelease /usr/src/app/public public
 COPY --from=prerelease /usr/src/app/views views
 COPY --from=prerelease /usr/src/app/package.json .
+COPY --from=prerelease /usr/src/app/data data
 
 # run the app
 USER bun
