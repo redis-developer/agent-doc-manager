@@ -1,10 +1,10 @@
   <ul hx-swap-oob="outerHTML:#sidebarProjects" id="sidebarProjects" class="my-2 list-none overflow-y-auto">
     {{#each projects}}
-      <li class="truncate cursor-pointer rounded hover:bg-gray-200 active:bg-gray-300{{#ifEqual a=projectId b=../currentProjectId}} bg-gray-300{{/ifEqual}}">
+      <li class="truncate cursor-pointer rounded hover:bg-gray-700 active:bg-gray-600{{#ifEqual a=projectId b=../currentProjectId}} bg-gray-600{{/ifEqual}}">
         <form ws-send hx-disabled-elt="this" class="block w-full">
             <input type="hidden" name="cmd" value="projects/switch" />
             <input type="hidden" name="projectId" value="{{projectId}}" />
-            <button type="submit" class="block w-full text-xs p-2 text-left text-gray-600">
+            <button type="submit" class="block w-full text-xs p-2 text-left text-gray-300">
                 {{title}}
             </button>
         </form>
