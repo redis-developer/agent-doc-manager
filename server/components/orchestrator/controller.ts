@@ -374,12 +374,12 @@ export async function confirmChanges(
     }),
   );
 
-  const doc = await documents.read(userId, documentId);
-
   if (action === "cancel") {
     logger.debug(`User cancelled changes`, {
       userId,
     });
+
+    const doc = await documents.read(userId, documentId);
 
     if (doc) {
       send(
@@ -482,7 +482,9 @@ export async function confirmChanges(
       projectId,
       actions,
     );
-  } else if (action === "apply" && doc) {
+  } else if (action === "apply") {
+    const doc = await documents.read(userId, documentId);
+
     send(
       view.renderDocument({
         ...doc!,
