@@ -1,4 +1,4 @@
-name: "redis-chat"
+name: "redis-document-agent"
 services:
   redis:
     container_name: redis

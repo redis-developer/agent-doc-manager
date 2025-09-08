@@ -13,7 +13,7 @@ import type { Project } from "../projects";
 import type { Document } from "../documents";
 
 async function getProjectMemory(userId: string, projectId?: string) {
-  const redis = getClient();
+  const redis = await getClient();
 
   return ShortTermMemoryModel.FromSessionId(redis, userId, projectId, {
     createUid: randomUlid,
@@ -21,7 +21,7 @@ async function getProjectMemory(userId: string, projectId?: string) {
 }
 
 async function getWorkingMemory(userId: string) {
-  const redis = getClient();
+  const redis = await getClient();
 
   return WorkingMemoryModel.New(redis, userId, {
     createUid: randomUlid,
@@ -704,7 +704,7 @@ export async function clearProjects(
       userId,
     });
 
-    const db = getClient();
+    const db = await getClient();
     const allKeys = await db.keys("projects:*");
     const chunks = await db.keys("document-chunks:*");
     const docs = await db.keys("documents:*");
@@ -760,7 +760,7 @@ export async function clearMemory(
       userId,
     });
 
-    const db = getClient();
+    const db = await getClient();
     const allKeys = await db.keys("users:*");
     const sessions = await db.keys("session:*");
     const semantic = await db.keys("semantic-memory:*");
@@ -772,6 +772,10 @@ export async function clearMemory(
 
     if (Array.isArray(allProjects) && allProjects.length > 0) {
       allKeys.push(...allProjects);
+    }
+
+    if (Array.isArray(sessions) && sessions.length > 0) {
+      allKeys.push(...sessions);
     }
 
     if (Array.isArray(docs) && docs.length > 0) {

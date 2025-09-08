@@ -36,7 +36,7 @@ export async function createIndexIfNotExists() {
     },
   };
 
-  const db = getClient();
+  const db = await getClient();
   const indexName = "idx-projects";
   try {
     await db.ft.info(indexName);
@@ -54,7 +54,7 @@ export async function create(userId: string) {
       userId,
     });
 
-    const db = getClient();
+    const db = await getClient();
     const id = crypto.randomUUID();
     const project: Project = {
       projectId: id,
@@ -87,7 +87,7 @@ export async function update(
   title: string,
   prompt: string,
 ) {
-  const db = getClient();
+  const db = await getClient();
   const projectKey = `projects:${projectId}`;
   const project = await db.json.get(projectKey, {
     path: "$",
@@ -106,7 +106,7 @@ export async function update(
 }
 
 export async function all(userId: string) {
-  const db = getClient();
+  const db = await getClient();
   const results = await db.ft.search(
     "idx-projects",
     `@userId:{${escapeDashes(userId)}}`,
@@ -123,7 +123,7 @@ export async function all(userId: string) {
 }
 
 export async function read(userId: string, projectId: string) {
-  const db = getClient();
+  const db = await getClient();
   const projectKey = `projects:${projectId}`;
   let project = await db.json.get(projectKey, {
     path: "$",

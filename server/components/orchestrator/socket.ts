@@ -3,7 +3,7 @@ import type { WebSocket } from "ws";
 import type { Request } from "express";
 import logger, { logWst } from "../../utils/log";
 import expressSession from "express-session";
-import session from "../../utils/session";
+import { getSessionParser } from "../../utils/session";
 import * as orchestrator from "./controller";
 import { ctrl as projectsCtrl } from "../projects";
 import { ctrl as documentsCtrl } from "../documents";
@@ -326,6 +326,7 @@ async function onConnection(
   type: "chat" | "projects",
 ) {
   await initialize();
+  const session = await getSessionParser();
   session(req, {} as any, async () => {
     await initialize();
     const userId = req.session.id;

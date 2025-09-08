@@ -88,7 +88,7 @@ export async function createIndexIfNotExists() {
     },
   };
 
-  const db = getClient();
+  const db = await getClient();
   let indexName = "idx-documents";
   try {
     await db.ft.info(indexName);
@@ -170,7 +170,7 @@ export async function createMany(
     allChunks.push(...(await split(mdFile)));
   }
 
-  const db = getClient();
+  const db = await getClient();
 
   logger.debug(
     `Setting ${allDocuments.length} documents for user ${userId} and project ${projectId} in Redis`,
@@ -229,7 +229,7 @@ export async function allUrls(
   userId: string,
   projectId: string,
 ): Promise<string[]> {
-  const db = getClient();
+  const db = await getClient();
 
   logger.debug(
     `Fetching all document URLs for user ${userId} and project ${projectId}`,
@@ -265,7 +265,7 @@ export async function searchChunks(
 ): Promise<DocumentChunk[]> {
   logger.debug(`Searching documents for user ${userId} with query: ${query}`);
 
-  const db = getClient();
+  const db = await getClient();
   const embedding = await embedText(query);
 
   let results = await db.ft.search(
@@ -322,7 +322,7 @@ export async function search(
   projectId: string,
   query: string,
 ): Promise<Document[]> {
-  const db = getClient();
+  const db = await getClient();
   const chunks = await searchChunks(userId, query);
   let results: Awaited<ReturnType<typeof db.ft.search>> = {
     total: 0,
@@ -387,7 +387,7 @@ export async function all(
   userId: string,
   projectId?: string,
 ): Promise<Document[]> {
-  const db = getClient();
+  const db = await getClient();
 
   let search = `@userId:{${escapeDashes(userId)}}`;
 
@@ -420,7 +420,7 @@ export async function byUrl(
   projectId: string,
   url: string,
 ): Promise<Document | null> {
-  const db = getClient();
+  const db = await getClient();
 
   const results = await db.ft.search(
     "idx-documents",
@@ -447,7 +447,7 @@ export async function read(
   userId: string,
   documentId: string,
 ): Promise<Document | null> {
-  const db = getClient();
+  const db = await getClient();
   const documentKey = `documents:${documentId}`;
   let document = await db.json.get(documentKey, {
     path: "$",
@@ -483,7 +483,7 @@ export async function modifyContent(document: Document, prompt: string) {
     prompt,
     document.url,
   );
-  const db = getClient();
+  const db = await getClient();
 
   document.content = newContent;
 

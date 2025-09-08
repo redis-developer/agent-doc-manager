@@ -1,7 +1,7 @@
 import express from "express";
 import { engine } from "express-handlebars";
 import type { HelperOptions } from "handlebars";
-import session from "./utils/session";
+import { getSessionParser } from "./utils/session";
 import { ctrl as chat } from "./components/chats";
 import { ctrl as documents } from "./components/documents";
 import { ctrl as projects } from "./components/projects";
@@ -38,7 +38,10 @@ app.use(async (req, res, next) => {
   await initialize();
   next();
 });
-app.use(session);
+app.use(async (req, res, next) => {
+  const session = await getSessionParser();
+  session(req, res, next);
+});
 
 app.get("/chat", async (req, res) => {
   const userId = req.session.id;

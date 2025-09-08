@@ -7,11 +7,9 @@ import { ShortTermMemoryModel, WorkingMemoryModel, Tools } from "../memory";
 import type { ShortTermMemory } from "../memory";
 import * as ai from "./ai";
 import { ctrl as documents } from "../documents";
-import type { DocumentChunk } from "../documents";
-import { getChunkSearchTool } from "../documents/controller";
 
 async function getWorkingMemory(userId: string) {
-  const redis = getClient();
+  const redis = await getClient();
 
   return WorkingMemoryModel.New(redis, userId, {
     createUid: () => randomUlid(),
@@ -26,7 +24,7 @@ async function getTools(userId: string) {
 }
 
 export async function getChatSession(userId: string, chatId?: string) {
-  const redis = getClient();
+  const redis = await getClient();
 
   return ShortTermMemoryModel.FromSessionId(redis, userId, chatId, {
     createUid: () => randomUlid(),
@@ -139,7 +137,7 @@ export async function newChatMessage(
 
 export async function getChatsWithTopMessage(userId: string) {
   const existingChats = await ShortTermMemoryModel.AllSessions(
-    getClient(),
+    await getClient(),
     userId,
     {
       createUid: () => randomUlid(),
@@ -158,7 +156,7 @@ export async function getChatsWithTopMessage(userId: string) {
  * Creates a new chat user.
  */
 export async function newChat(userId: string): Promise<string> {
-  const newChat = await ShortTermMemoryModel.New(getClient(), userId, {
+  const newChat = await ShortTermMemoryModel.New(await getClient(), userId, {
     createUid: () => randomUlid(),
   });
   return newChat.sessionId;

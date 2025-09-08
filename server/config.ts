@@ -13,8 +13,8 @@ const config = {
   },
   app: {
     URL: process.env.APP_URL || `http://localhost:${process.env.PORT || 8080}`,
-    FULL_NAME: process.env.APP_FULL_NAME || "Redis Chat",
-    SERVICE_NAME: process.env.APP_SERVICE_NAME || "redis-chat",
+    FULL_NAME: process.env.APP_FULL_NAME || "Redis Document Agent",
+    SERVICE_NAME: process.env.APP_SERVICE_NAME || "redis-document-agent",
     VERSION: process.env.APP_VERSION || "1.0.0",
   },
   anthropic: {

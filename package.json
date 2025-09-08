@@ -5,12 +5,12 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "deploy:css": "bunx @tailwindcss/cli -i ./styles/styles.css -o ./public/styles.css",
     "deploy:build": "bun build --target=bun . --outdir build/",
-    "dev": "bun run --bun concurrently npm:dev:*",
+    "dev": "bun run dev.ts",
     "dev:server": "bun run --watch .",
     "dev:css": "bunx @tailwindcss/cli -i ./styles/styles.css -o ./public/styles.css --watch",
     "docker": "docker compose down && docker compose up -d --build",
