@@ -378,6 +378,16 @@ export async function confirmChanges(
       userId,
     });
 
+    if (!documentId) {
+      send(
+        view.renderInstructions({
+          instructions: "",
+          progress: false,
+        }),
+      );
+      return;
+    }
+
     const doc = await documents.read(userId, documentId);
 
     if (doc) {
@@ -705,41 +715,8 @@ export async function clearProjects(
       userId,
     });
 
-    const db = await getClient();
-    const allKeys = await db.keys("projects:*");
-    const chunks = await db.keys("document-chunks:*");
-    const docs = await db.keys("documents:*");
-
-    if (Array.isArray(docs) && docs.length > 0) {
-      allKeys.push(...docs);
-    }
-
-    if (Array.isArray(chunks) && chunks.length > 0) {
-      allKeys.push(...chunks);
-    }
-
-    if (Array.isArray(allKeys) && allKeys.length > 0) {
-      await db.del(allKeys);
-    }
-
-    const indexes = await db.ft._list();
-
-    await Promise.all(
-      indexes
-        .filter((index) => {
-          return (
-            index.includes("projects") ||
-            index.includes("documents") ||
-            index.includes("document-chunks")
-          );
-        })
-        .map(async (index) => {
-          await db.ft.dropIndex(index);
-        }),
-    );
-
-    await projects.initialize();
-    await documents.initialize();
+    await projects.removeAllForUser(userId);
+    await documents.removeAllForUser(userId);
   } catch (error) {
     logger.error("Failed to clear memory:", {
       error,

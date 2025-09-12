@@ -240,7 +240,7 @@ export async function onMessage(
       });
       break;
     case "projects/clear":
-      await orchestrator.clearMemory(send, userId);
+      await orchestrator.clearProjects(send, userId);
 
       // @ts-ignore
       delete session.currentProjectId;
