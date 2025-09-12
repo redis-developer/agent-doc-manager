@@ -65,7 +65,7 @@ export async function crawlUrl(
   url: string,
   instructions: string,
 ) {
-  return await crawlLocalDocuments(userId, projectId);
+  return await crawlLocalDocuments(userId, projectId, 5);
 
   // const pages = await tavily.crawl(url, instructions);
 
