@@ -31,6 +31,7 @@ export interface WorkingMemoryModelOptions {
   embed?(text: string): Promise<number[]>;
   distanceThreshold?: number;
   topK?: number;
+  ttl?: number;
 }
 
 export class WorkingMemoryModel {
@@ -86,6 +87,7 @@ export class WorkingMemoryModel {
         },
         distanceThreshold: 0.4,
         topK: 20,
+        ttl: -1,
       } as WorkingMemoryModelOptions,
       options,
     );

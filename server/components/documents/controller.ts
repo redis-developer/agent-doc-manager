@@ -4,6 +4,7 @@ import {
   SCHEMA_VECTOR_FIELD_ALGORITHM,
   SearchReply,
 } from "redis";
+import config from "../../config";
 import getClient from "../../redis";
 import { llm, embedText } from "../../services/ai/ai";
 import { randomUlid } from "../../utils/uid";
@@ -17,6 +18,8 @@ import {
   urlToBase64,
 } from "../../utils/convert";
 import logger from "../../utils/log";
+
+const DEFAULT_TTL = config.redis.DEFAULT_TTL || -1;
 
 export interface Document {
   id: string;
@@ -179,6 +182,8 @@ export async function createMany(
     },
   );
 
+  const allKeys = allDocuments.map((d) => `documents:${d.id}`);
+
   await db.json.mSet(
     allDocuments.map((document) => {
       return {
@@ -199,15 +204,23 @@ export async function createMany(
     },
   );
 
-  await db.json.mSet(
-    allChunks.map((chunk) => {
-      return {
-        key: `document-chunks:${randomUlid()}`,
-        path: "$",
-        value: chunk as any,
-      };
-    }),
-  );
+  const jsonChunks = allChunks.map((chunk) => {
+    return {
+      key: `document-chunks:${randomUlid()}`,
+      path: "$",
+      value: chunk as any,
+    };
+  });
+
+  allKeys.push(...jsonChunks.map((c) => c.key));
+
+  await db.json.mSet(jsonChunks);
+
+  if (DEFAULT_TTL > 0) {
+    for (const key of allKeys) {
+      await db.expire(key, DEFAULT_TTL);
+    }
+  }
 
   return allDocuments;
 }
@@ -527,6 +540,10 @@ export async function modifyContent(document: Document, prompt: string) {
     url: urlToBase64(document.url),
   } as any);
 
+  if (DEFAULT_TTL > 0) {
+    await db.expire(`documents:${document.id}`, DEFAULT_TTL);
+  }
+
   logger.debug(
     `Adding ${chunks.length} new chunks for document ${document.id} in Redis`,
     {
@@ -534,15 +551,21 @@ export async function modifyContent(document: Document, prompt: string) {
     },
   );
 
-  await db.json.mSet(
-    chunks.map((chunk) => {
-      return {
-        key: `document-chunks:${randomUlid()}`,
-        path: "$",
-        value: chunk as any,
-      };
-    }),
-  );
+  const jsonChunks = chunks.map((chunk) => {
+    return {
+      key: `document-chunks:${randomUlid()}`,
+      path: "$",
+      value: chunk as any,
+    };
+  });
+
+  await db.json.mSet(jsonChunks);
+
+  if (DEFAULT_TTL > 0) {
+    for (const key of jsonChunks.map((c) => c.key)) {
+      await db.expire(key, DEFAULT_TTL);
+    }
+  }
 
   return document;
 }
@@ -608,6 +631,43 @@ export async function applyToAll(
   }
 
   logger.debug(`Completed applying actions to all documents`, {
+    userId,
+  });
+}
+
+export async function removeAllForUser(userId: string) {
+  const db = await getClient();
+  const documents = await all(userId);
+  const keys = documents.map((d) => `documents:${d.id}`);
+
+  if (keys.length === 0) {
+    return;
+  }
+
+  let allChunks: SearchReply;
+  do {
+    allChunks = await db.ft.search(
+      "idx-document-chunks",
+      `@userId:{${escapeDashes(userId)}}`,
+      {
+        RETURN: ["documentId"],
+        LIMIT: {
+          from: 0,
+          size: 1000,
+        },
+      },
+    );
+
+    if (allChunks.total > 0) {
+      await db.del(allChunks.documents.map((doc) => doc.id));
+    }
+  } while (allChunks.total > 0);
+
+  do {
+    await db.del(keys.splice(0, 1000));
+  } while (keys.length > 0);
+
+  logger.debug(`Deleted all documents and chunks for user ${userId}`, {
     userId,
   });
 }

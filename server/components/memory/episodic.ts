@@ -16,6 +16,7 @@ export interface EpisodicMemoryModelOptions {
   embed?(text: string): Promise<number[]>;
   distanceThreshold?: number;
   topK?: number;
+  ttl?: number;
 }
 
 export class EpisodicMemoryModel {
@@ -94,6 +95,7 @@ export class EpisodicMemoryModel {
         },
         distanceThreshold: 0.4,
         topK: 1,
+        ttl: -1,
       } as EpisodicMemoryModelOptions,
       options,
     );
@@ -166,6 +168,8 @@ export class EpisodicMemoryModel {
       embedding,
     });
 
+    ttl = ttl ?? this.options.ttl;
+
     if (ttl && ttl > 0) {
       await this.db.expire(key, ttl);
     }
@@ -198,6 +202,13 @@ export class EpisodicMemoryModel {
       chatId,
       embedding,
     });
+
+    ttl = ttl ?? this.options.ttl;
+
+    if (ttl && ttl > 0) {
+      await this.db.persist(id);
+      await this.db.expire(id, ttl);
+    }
   }
 }
 

@@ -5,6 +5,7 @@ import { randomUlid } from "../../utils/uid";
 
 export interface ShortTermMemoryModelOptions {
   createUid?(): string;
+  ttl?: number;
 }
 
 export interface ShortTermMemory {
@@ -160,6 +161,7 @@ export class ShortTermMemoryModel {
       {},
       {
         createUid: randomUlid,
+        ttl: -1,
       },
       options,
     );
@@ -263,6 +265,11 @@ export class ShortTermMemoryModel {
 
     await this.db.json.arrAppend(this.sessionKey, "$.memories", memory);
 
+    if (this.options.ttl && this.options.ttl > 0) {
+      await this.db.persist(this.sessionKey);
+      await this.db.expire(this.sessionKey, this.options.ttl);
+    }
+
     return memory;
   }
 
@@ -286,6 +293,10 @@ export class ShortTermMemoryModel {
 
     if (!exists) {
       await this.db.json.set(this.sessionKey, "$", session as any);
+
+      if (this.options.ttl && this.options.ttl > 0) {
+        await this.db.expire(this.sessionKey, this.options.ttl);
+      }
     }
 
     return session;

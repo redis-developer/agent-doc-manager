@@ -2,7 +2,9 @@ import { RediSearchSchema, SCHEMA_FIELD_TYPE } from "redis";
 import logger from "../../utils/log";
 import getClient from "../../redis";
 import { escapeDashes } from "../../utils/convert";
-import { ctrl as orchestrator } from "../orchestrator";
+import config from "../../config";
+
+const DEFAULT_TTL = config.redis.DEFAULT_TTL || -1;
 
 export interface Project {
   projectId: string;
@@ -66,6 +68,10 @@ export async function create(userId: string) {
 
     await db.json.set(`projects:${id}`, "$", project as any);
 
+    if (DEFAULT_TTL > 0) {
+      await db.expire(`projects:${id}`, DEFAULT_TTL);
+    }
+
     logger.debug(`Created new project \`${id}\` for user \`${userId}\``, {
       projectId: id,
       userId,
@@ -103,6 +109,11 @@ export async function update(
 
   await db.json.set(projectKey, "$.title", title);
   await db.json.set(projectKey, "$.prompt", prompt);
+
+  if (DEFAULT_TTL > 0) {
+    await db.persist(projectKey);
+    await db.expire(projectKey, DEFAULT_TTL);
+  }
 }
 
 export async function all(userId: string) {
@@ -142,4 +153,16 @@ export async function read(userId: string, projectId: string) {
   }
 
   return project as unknown as Project;
+}
+
+export async function removeAllForUser(userId: string) {
+  const db = await getClient();
+  const projects = await all(userId);
+  const keys = projects.map((p) => `projects:${p.projectId}`);
+
+  if (keys.length === 0) {
+    return;
+  }
+
+  await db.del(keys);
 }

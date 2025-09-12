@@ -1,4 +1,5 @@
 import getClient from "../../redis";
+import config from "../../config";
 import { llm, embedText } from "../../services/ai/ai";
 import { randomUlid } from "../../utils/uid";
 import logger from "../../utils/log";
@@ -15,6 +16,7 @@ async function getWorkingMemory(userId: string) {
     createUid: () => randomUlid(),
     vectorDimensions: llm.dimensions,
     embed: embedText,
+    ttl: config.redis.DEFAULT_TTL,
   });
 }
 
@@ -28,6 +30,7 @@ export async function getChatSession(userId: string, chatId?: string) {
 
   return ShortTermMemoryModel.FromSessionId(redis, userId, chatId, {
     createUid: () => randomUlid(),
+    ttl: config.redis.DEFAULT_TTL,
   });
 }
 

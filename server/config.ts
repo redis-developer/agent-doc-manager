@@ -56,6 +56,7 @@ const config = {
   },
   redis: {
     URL: process.env.REDIS_URL || "redis://localhost:6379",
+    DEFAULT_TTL: parseInt(process.env.REDIS_DEFAULT_TTL || "-1", 10), // in seconds, -1 = never expire
     SESSION_SECRET:
       process.env.REDIS_SESSION_SECRET || "default_session_secret",
     SESSION_PREFIX: process.env.REDIS_SESSION_PREFIX || "session:",

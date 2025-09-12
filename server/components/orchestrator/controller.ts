@@ -1,24 +1,16 @@
 import logger from "../../utils/log";
 import { llm, embedText } from "../../services/ai/ai";
+import config from "../../config";
 import getClient from "../../redis";
-import { ShortTermMemoryModel, WorkingMemoryModel } from "../memory";
+import { WorkingMemoryModel } from "../memory";
 import { randomUlid } from "../../utils/uid";
-import { CommandEnum, ctrl as parser } from "../parser";
+import { ctrl as parser } from "../parser";
 import { ctrl as crawler } from "../crawl";
 import { ctrl as documents } from "../documents";
 import { ctrl as projects } from "../projects";
 import { ctrl as chats } from "../chats";
 import * as view from "./view";
-import type { Project } from "../projects";
 import type { Document } from "../documents";
-
-async function getProjectMemory(userId: string, projectId?: string) {
-  const redis = await getClient();
-
-  return ShortTermMemoryModel.FromSessionId(redis, userId, projectId, {
-    createUid: randomUlid,
-  });
-}
 
 async function getWorkingMemory(userId: string) {
   const redis = await getClient();
@@ -27,6 +19,7 @@ async function getWorkingMemory(userId: string) {
     createUid: randomUlid,
     vectorDimensions: llm.dimensions,
     embed: embedText,
+    ttl: config.redis.DEFAULT_TTL,
   });
 }
 
@@ -57,6 +50,12 @@ export async function initializeProjects(
     );
 
     if (currentProjectId) {
+      try {
+        await projects.read(userId, currentProjectId);
+      } catch (error) {
+        return undefined;
+      }
+
       await switchProject(send, userId, currentProjectId);
     }
 
@@ -763,59 +762,67 @@ export async function clearMemory(
     });
 
     const db = await getClient();
-    const allKeys = await db.keys("users:*");
-    const sessions = await db.keys("session:*");
-    const semantic = await db.keys("semantic-memory:*");
-    const chunks = await db.keys("document-chunks:*");
-    const docs = await db.keys("documents:*");
-    const allProjects = await db.keys("projects:*");
-
-    allKeys.push("ERROR_STREAM", "LOG_STREAM");
-
-    if (Array.isArray(allProjects) && allProjects.length > 0) {
-      allKeys.push(...allProjects);
-    }
-
-    if (Array.isArray(sessions) && sessions.length > 0) {
-      allKeys.push(...sessions);
-    }
-
-    if (Array.isArray(docs) && docs.length > 0) {
-      allKeys.push(...docs);
-    }
-
-    if (Array.isArray(chunks) && chunks.length > 0) {
-      allKeys.push(...chunks);
-    }
-
-    if (Array.isArray(semantic) && semantic.length > 0) {
-      allKeys.push(...semantic);
-    }
+    const allKeys = await db.keys(`users:u${userId}:*`);
 
     if (Array.isArray(allKeys) && allKeys.length > 0) {
       await db.del(allKeys);
     }
 
-    const indexes = await db.ft._list();
+    await projects.removeAllForUser(userId);
+    await documents.removeAllForUser(userId);
+    // const allKeys = await db.keys("users:*");
+    // const sessions = await db.keys("session:*");
+    // const semantic = await db.keys("semantic-memory:*");
+    // const chunks = await db.keys("document-chunks:*");
+    // const docs = await db.keys("documents:*");
+    // const allProjects = await dFb.keys("projects:*");
 
-    await Promise.all(
-      indexes
-        .filter((index) => {
-          return (
-            index.includes("users") ||
-            index.includes("semantic-memory") ||
-            index.includes("projects") ||
-            index.includes("documents") ||
-            index.includes("document-chunks")
-          );
-        })
-        .map(async (index) => {
-          await db.ft.dropIndex(index);
-        }),
-    );
+    // allKeys.push("ERROR_STREAM", "LOG_STREAM");
 
-    await projects.initialize();
-    await documents.initialize();
+    // if (Array.isArray(allProjects) && allProjects.length > 0) {
+    //   allKeys.push(...allProjects);
+    // }
+
+    // if (Array.isArray(sessions) && sessions.length > 0) {
+    //   allKeys.push(...sessions);
+    // }
+
+    // if (Array.isArray(docs) && docs.length > 0) {
+    //   allKeys.push(...docs);
+    // }
+
+    // if (Array.isArray(chunks) && chunks.length > 0) {
+    //   allKeys.push(...chunks);
+    // }
+
+    // if (Array.isArray(semantic) && semantic.length > 0) {
+    //   allKeys.push(...semantic);
+    // }
+
+    // if (Array.isArray(allKeys) && allKeys.length > 0) {
+    //   await db.del(allKeys);
+    // }
+
+    // const indexes = await db.ft._list();
+
+    // await Promise.all(
+    //   indexes
+    //     .filter((index) => {
+    //       return (
+    //         index.includes("users") ||
+    //         index.includes("semantic-memory") ||
+    //         index.includes("projects") ||
+    //         index.includes("documents") ||
+    //         index.includes("document-chunks")
+    //       );
+    //     })
+    //     .map(async (index) => {
+    //       await db.ft.dropIndex(index);
+    //     }),
+    // );
+
+    // await projects.initialize();
+    // await documents.initialize();
   } catch (error) {
     logger.error("Failed to clear memory:", {
       error,

@@ -229,6 +229,8 @@ export async function onMessage(
       await orchestrator.switchChat(send, userId, form.chatId);
       break;
     case "users/new":
+      await orchestrator.clearMemory(send, userId);
+
       logWst.removeUser(userId);
       session.destroy((err) => {
         if (err) {
@@ -238,21 +240,26 @@ export async function onMessage(
       });
       break;
     case "projects/clear":
-      await orchestrator.clearProjects(send, userId);
+      await orchestrator.clearMemory(send, userId);
 
       // @ts-ignore
-      session.currentProjectId = undefined;
+      delete session.currentProjectId;
       session.save();
       break;
     case "data/clear":
       await orchestrator.clearMemory(send, userId);
-      logWst.removeUser(userId);
-      session.destroy((err) => {
-        if (err) {
-          logger.error("Failed to regenerate session", { error: err });
-          return;
-        }
-      });
+
+      // @ts-ignore
+      delete session.currentProjectId;
+      session.save();
+
+      // logWst.removeUser(userId);
+      // session.destroy((err) => {
+      //   if (err) {
+      //     logger.error("Failed to regenerate session", { error: err });
+      //     return;
+      //   }
+      // });
       break;
     default:
       logger.warn("Unknown command received", {
@@ -291,6 +298,12 @@ export async function initializeSocket(
         userId,
         currentProjectId,
       );
+
+      if (!newProjectId) {
+        // @ts-ignore
+        delete session.currentProjectId;
+        session.save();
+      }
 
       break;
     case "chat":
